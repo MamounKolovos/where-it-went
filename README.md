@@ -48,7 +48,9 @@ $ uv run basedpyright
 
 ## For Vscode
 
-Install ruff extension: https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff
+Install the basedpyright extension: https://marketplace.visualstudio.com/items?itemName=detachhead.basedpyright
+
+Install the ruff extension: https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff
 
 Open the command palette (`Ctrl+Shift+P`) and run the `Preferences: Open User Settings (JSON)` command to open your settings config
 
