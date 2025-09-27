@@ -26,6 +26,20 @@ $ uv sync
 $ uv run where-it-went
 ```
 
+###### Usage with environment variables
+
+Make a .env file in the root with this structure
+```bash
+# where-it-went/.env
+PORT = 5000
+```
+
+Run project with environment variables loaded
+
+```bash
+$ uv run --env-file=.env where-it-went
+```
+
 ## Development
 
 Run tests:
