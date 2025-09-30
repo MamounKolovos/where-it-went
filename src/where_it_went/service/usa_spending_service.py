@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Self
 
-import httpx
+import requests
 from pydantic import BaseModel, Field
 
 from ..utils.result import Ok, Result, as_result
@@ -87,7 +87,7 @@ class USASpendingClient:
 
   def __init__(self) -> None:
     self.base_url: str = "https://api.usaspending.gov/api/v2"
-    self.client: httpx.Client = httpx.Client(timeout=30.0)
+    self.client: requests.Session = requests.Session()
 
   def __enter__(self) -> Self:
     return self
@@ -95,7 +95,7 @@ class USASpendingClient:
   def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
     self.client.close()
 
-  @as_result(httpx.HTTPError, USASpendingError)
+  @as_result(requests.exceptions.HTTPError, USASpendingError)
   def search_spending_by_award(
     self,
     request: SpendingRequest,
