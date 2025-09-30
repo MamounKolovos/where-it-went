@@ -3,7 +3,7 @@
 
 import sys
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -317,7 +317,8 @@ class USASpendingTestSuite:
               print(f"    📊 Sample: ${amount:,.2f} to {recipient}")
               return (
                 True,
-                f"API call successful, found {len(spending_response.results)} awards",
+                f"API call successful, found \
+                {len(spending_response.results)} awards",
               )
           case Err(error):
             return False, f"API call failed: {error}"

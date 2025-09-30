@@ -1,32 +1,17 @@
 from http import HTTPMethod, HTTPStatus
-from typing import Any, cast
 
-from flask import Flask, Request, Response, jsonify, request
-from pydantic import BaseModel, ValidationError
+import flask
+from flask import Flask, jsonify, request
+from pydantic import BaseModel
 
+from .service.search_nearby import search_nearby_blueprint
 from .utils import result
+from .utils.decoding import decode_model
+from .utils.http import parse_post_json
 from .utils.result import Err, Ok, Result
 
 app = Flask(__name__)
-
-
-def parse_json(request: Request) -> Result[dict[str, Any], str]:
-  # silent=True returns None instead of raising BadRequest
-  match request.get_json(silent=True):
-    case dict(json):  # pyright: ignore[reportUnknownVariableType]
-      json = cast(dict[str, Any], json)
-      return Ok(json)
-    case _:
-      return Err("JSON body must be an object")
-
-
-def decode_model[m: BaseModel](
-  model: type[m], json: dict[str, Any]
-) -> Result[m, str]:
-  try:
-    return Ok(model(**json))
-  except ValidationError:
-    return Err("Validation error, invalid field name or value")
+app.register_blueprint(search_nearby_blueprint)
 
 
 class AddRequest(BaseModel):
@@ -35,10 +20,10 @@ class AddRequest(BaseModel):
 
 
 @app.route("/add", methods=[HTTPMethod.POST])
-def add() -> tuple[Response, HTTPStatus]:
+def add() -> tuple[flask.Response, HTTPStatus]:
   add_request_result: Result[AddRequest, str] = result.do(
     Ok(add_request)
-    for json in parse_json(request)
+    for json in parse_post_json(request)
     for add_request in decode_model(AddRequest, json)
   )
 
