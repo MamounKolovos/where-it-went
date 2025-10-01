@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from http import HTTPStatus
 
 import pytest
@@ -10,7 +11,7 @@ if __name__ == "__main__":
 
 
 @pytest.fixture
-def client():
+def client() -> Generator[FlaskClient, None, None]:
   """
   Provides test client which simulates requests
   without actually running a live server
@@ -19,13 +20,13 @@ def client():
     yield client
 
 
-def add_1_test(client: FlaskClient):
+def add_1_test(client: FlaskClient) -> None:
   response = client.post("/add", json={"x": 5, "y": 3})
   assert response.status_code == HTTPStatus.OK
   assert response.get_json() == {"sum": 8}
 
 
-def add_2_test(client: FlaskClient):
+def add_2_test(client: FlaskClient) -> None:
   response = client.post("/add", json="x")
   assert (
     response.status_code == HTTPStatus.BAD_REQUEST
@@ -33,7 +34,7 @@ def add_2_test(client: FlaskClient):
   )
 
 
-def add_3_test(client: FlaskClient):
+def add_3_test(client: FlaskClient) -> None:
   response = client.post("/add", json={"_x": 5, "y": 3})
   assert (
     response.status_code == HTTPStatus.BAD_REQUEST
@@ -41,7 +42,7 @@ def add_3_test(client: FlaskClient):
   )
 
 
-def add_4_test(client: FlaskClient):
+def add_4_test(client: FlaskClient) -> None:
   response = client.post("/add", json={"_x": 5, "_y": 3})
   assert (
     response.status_code == HTTPStatus.BAD_REQUEST
