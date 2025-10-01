@@ -14,6 +14,17 @@ from ..utils.result import Err, Ok, Result
 
 search_nearby_blueprint = Blueprint("search_nearby", __name__)
 
+API_URL = "https://places.googleapis.com/v1"
+SEARCH_NEARBY_ENDPOINT = "/places:searchNearby"
+
+places_session = requests.Session()
+places_session.headers.update(
+  {
+    "Content-Type": "application/json",
+    "X-Goog-FieldMask": "places.displayName,places.location,places.types",
+  }
+)
+
 
 class NearbySearchRequest(BaseModel):
   latitude: float
@@ -39,10 +50,6 @@ class Place(BaseModel):
 
 class NearbySearchPlacesApiResponse(BaseModel):
   places: list[Place]
-
-
-API_URL = "https://places.googleapis.com/v1"
-SEARCH_NEARBY_ENDPOINT = "/places:searchNearby"
 
 
 @search_nearby_blueprint.route("/search-nearby", methods=[HTTPMethod.GET])
@@ -82,15 +89,12 @@ def search_nearby() -> tuple[flask.Response, HTTPStatus]:
 
   places_api_key = places_api_key_result.unwrap()
 
-  headers = {
-    "Content-Type": "application/json",
-    "X-Goog-FieldMask": "places.displayName,places.location,places.types",
-    "X-Goog-Api-Key": places_api_key,
-  }
-
-  response = requests.post(
-    API_URL + SEARCH_NEARBY_ENDPOINT, json=json, headers=headers
+  response = places_session.post(
+    API_URL + SEARCH_NEARBY_ENDPOINT,
+    json=json,
+    headers={"X-Goog-Api-Key": places_api_key},
   )
+
   response_json_result = parse_response_json(response)
 
   if isinstance(response_json_result, Err):
