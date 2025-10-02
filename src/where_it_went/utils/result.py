@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Generator, Iterator
-from typing import Any, Callable, NoReturn, cast, final, override
+from collections.abc import Callable, Generator, Iterator
+from typing import Any, NoReturn, cast, final, overload, override
 
 
 @final
@@ -41,18 +41,6 @@ class Ok[T]:
   @property
   def ok_value(self) -> T:
     return self._value
-
-  def unwrap(self) -> T:
-    return self._value
-
-  def unwrap_err(self) -> NoReturn:
-    raise UnwrapError(self, "Called `Result.unwrap_err()` on an `Ok` value")
-
-  def map[U](self, fun: Callable[[T], U]) -> Ok[U]:
-    return Ok(fun(self._value))
-
-  def map_err(self, _fun: object) -> Ok[T]:
-    return self
 
 
 class DoError[E](Exception):
@@ -112,24 +100,6 @@ class Err[E]:
   @property
   def err_value(self) -> E:
     return self._value
-
-  def unwrap(self) -> NoReturn:
-    exc = UnwrapError(
-      self,
-      f"Called `Result.unwrap()` on an `Err` value: {self._value!r}",
-    )
-    if isinstance(self._value, BaseException):
-      raise exc from self._value
-    raise exc
-
-  def unwrap_err(self) -> E:
-    return self._value
-
-  def map(self, _fun: object) -> Err[E]:
-    return self
-
-  def map_err[F](self, fun: Callable[[E], F]) -> Err[F]:
-    return Err(fun(self._value))
 
 
 type Result[T, E] = Ok[T] | Err[E]
@@ -202,3 +172,125 @@ def do[T, E](gen: Generator[Result[T, E], None, None]) -> Result[T, E]:
     return e.err
   except TypeError as te:
     raise te
+
+
+class SpecialUnwrapError(Exception):
+  error: object
+
+  def __init__(self, error: object) -> None:
+    self.error = error
+    super().__init__()
+
+
+def with_unwrap[**P, a, e](
+  func: Callable[P, a | Result[a, e]],
+) -> Callable[P, Result[a, e]]:
+  @functools.wraps(func)
+  def wrapper(*args: P.args, **kwargs: P.kwargs) -> Result[a, e]:
+    try:
+      ret = func(*args, **kwargs)
+      if isinstance(ret, (Ok, Err)):
+        return cast(Result[a, e], ret)
+      return Ok(ret)
+
+    except SpecialUnwrapError as unwrap_error:
+      return Err(cast(e, unwrap_error.error))
+
+  return wrapper
+
+
+@overload
+def unwrap[a, e](result: Result[a, e]) -> a: ...
+
+
+@overload
+def unwrap[a, e]() -> Callable[[Result[a, e]], a]: ...
+
+
+def do_unwrap[a, e](result: Result[a, e]) -> a:
+  match result:
+    case Ok(value):
+      return value
+    case Err(e):
+      raise SpecialUnwrapError(e)
+
+
+def unwrap[a, e](result: Result[a, e] | None = None) -> object:
+  match result:
+    case None:
+
+      def apply(result: Result[a, e]) -> a:
+        return do_unwrap(result)
+
+      return apply
+    case result:
+      return do_unwrap(result)
+
+
+@overload
+def replace_error[a, e, f](error: f, result: Result[a, e]) -> Result[a, f]: ...
+
+
+@overload
+def replace_error[a, e, f](
+  error: f,
+) -> Callable[[Result[a, e]], Result[a, f]]: ...
+
+
+def do_replace_error[a, e, f](error: f, result: Result[a, e]) -> Result[a, f]:
+  match result:
+    case Ok(value):
+      return Ok(value)
+    case Err(_):
+      return Err(error)
+
+
+def replace_error[a, e, f](
+  error: f,  # pyright: ignore[reportInvalidTypeVarUse]
+  result: Result[a, e] | None = None,
+) -> object:
+  match result:
+    case None:
+
+      def apply(result: Result[a, e]) -> Result[a, f]:
+        return do_replace_error(error, result)
+
+      return apply
+    case result:
+      return do_replace_error(error, result)
+
+
+@overload
+def map_error[a, e, f](
+  func: Callable[[e], f], result: Result[a, e]
+) -> Result[a, f]: ...
+
+
+@overload
+def map_error[a, e, f](
+  func: Callable[[e], f],
+) -> Callable[[Result[a, e]], Result[a, f]]: ...
+
+
+def do_map_error[a, e, f](
+  func: Callable[[e], f], result: Result[a, e]
+) -> Result[a, f]:
+  match result:
+    case Ok(value):
+      return Ok(value)
+    case Err(error):
+      return Err(func(error))
+
+
+def map_error[a, e, f](
+  func: Callable[[e], f], result: Result[a, e] | None = None
+) -> object:
+  match result:
+    case None:
+
+      def apply(result: Result[a, e]) -> Result[a, f]:
+        return do_map_error(func, result)
+
+      return apply
+    case result:
+      return do_map_error(func, result)
