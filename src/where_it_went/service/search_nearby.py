@@ -1,5 +1,4 @@
 from http import HTTPMethod, HTTPStatus
-from typing import Any
 
 import flask
 import requests
@@ -8,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from where_it_went import config
 
-from ..utils import result
+from ..utils import listutils, pipe, result
 from ..utils.decoding import decode_model
 from ..utils.http import parse_get_json, parse_response_json
 from ..utils.result import Err, Ok, Result
@@ -27,7 +26,7 @@ places_session.headers.update(
 )
 
 
-class NearbySearchRequest(BaseModel):
+class SearchNearbyRequest(BaseModel):
   latitude: float
   longitude: float
   radius: float  # meters
@@ -49,7 +48,7 @@ class AddressComponent(BaseModel):
   types: list[str]
 
 
-class Place(BaseModel):
+class ApiPlace(BaseModel):
   display_name: DisplayName = Field(..., alias="displayName")
   location: Location
   types: list[str]
@@ -60,23 +59,50 @@ class Place(BaseModel):
 
 
 class NearbySearchPlacesApiResponse(BaseModel):
-  places: list[Place]
+  places: list[ApiPlace]
 
 
-@search_nearby_blueprint.route("/search-nearby", methods=[HTTPMethod.GET])
-def search_nearby() -> tuple[flask.Response, HTTPStatus]:
-  model_result: Result[NearbySearchRequest, str] = result.do(
-    Ok(model)
-    for json in parse_get_json(request)
-    for model in decode_model(NearbySearchRequest, json)
+class ResponsePlace(BaseModel):
+  text: str
+  latitude: float
+  longitude: float
+  types: list[str]
+
+
+class NearbySearchResponse(BaseModel):
+  places: list[ResponsePlace]
+
+
+@result.with_unwrap
+def do_search_nearby(
+  request: flask.Request,
+) -> Result[NearbySearchResponse, tuple[str, HTTPStatus]]:
+  request_body = pipe(
+    request,
+    parse_get_json,
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
   )
 
-  if isinstance(model_result, Err):
-    return jsonify({"error": model_result.err_value}), HTTPStatus.BAD_REQUEST
+  model = pipe(
+    decode_model(SearchNearbyRequest, request_body),
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
+  )
 
-  model = model_result.unwrap()
+  places_api_key = pipe(
+    config.get_places_api_key(),
+    result.replace_error(
+      (
+        "Request does not have necessary authorization credentials, "
+        + "must provide Places API Key",
+        HTTPStatus.UNAUTHORIZED,
+      )
+    ),
+    result.unwrap(),
+  )
 
-  json = {
+  search_nearby_request_body = {
     "locationRestriction": {
       "circle": {
         "center": {
@@ -89,71 +115,46 @@ def search_nearby() -> tuple[flask.Response, HTTPStatus]:
     "maxResultCount": 20,
   }
 
-  places_api_key_result = config.get_places_api_key()
-  if isinstance(places_api_key_result, Err):
-    return jsonify(
-      {
-        "error": "Request does not have necessary authorization credentials, \
-        must provide Places API Key"
-      }
-    ), HTTPStatus.UNAUTHORIZED
-
-  places_api_key = places_api_key_result.unwrap()
-
-  response = places_session.post(
+  search_nearby_response = places_session.post(
     API_URL + SEARCH_NEARBY_ENDPOINT,
-    json=json,
+    json=search_nearby_request_body,
     headers={"X-Goog-Api-Key": places_api_key},
   )
 
-  response_json_result = parse_response_json(response)
-
-  if isinstance(response_json_result, Err):
-    return jsonify(
-      {"error": response_json_result.err_value}
-    ), HTTPStatus.BAD_REQUEST
-
-  response_json = response_json_result.unwrap()
-
-  response_model_result = decode_model(
-    NearbySearchPlacesApiResponse, response_json
+  response_body = pipe(
+    search_nearby_response,
+    parse_response_json,
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
   )
 
-  if isinstance(response_model_result, Err):
-    return jsonify(
-      {"error": response_model_result.err_value}
-    ), HTTPStatus.BAD_REQUEST
+  api_response_model = pipe(
+    decode_model(NearbySearchPlacesApiResponse, response_body),
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
+  )
 
-  response_model = response_model_result.unwrap()
+  places = pipe(
+    api_response_model.places,
+    listutils.map(
+      lambda api_place: ResponsePlace(
+        text=api_place.display_name.text,
+        latitude=api_place.location.latitude,
+        longitude=api_place.location.longitude,
+        types=api_place.types,
+      )
+    ),
+  )
 
-  # Extract simplified address info for each place
-  simplified_places: list[dict[str, Any]] = []
-  for place in response_model.places:
-    city = None
-    state = None
-    zipcode = None
+  response_model = NearbySearchResponse(places=places)
 
-    if place.address_components:
-      for component in place.address_components:
-        if "locality" in component.types:
-          city = component.long_text
-        elif "administrative_area_level_1" in component.types:
-          state = component.short_text
-        elif "postal_code" in component.types:
-          zipcode = component.long_text
+  return Ok(response_model)
 
-    # We can add more fields to the response later if we want to
-    formatted_response: dict[
-      str, str | dict[str, float] | list[str] | dict[str, str | None]
-    ] = {
-      "display_name": place.display_name.text,
-      "location": {
-        "latitude": place.location.latitude,
-        "longitude": place.location.longitude,
-      },
-      "types": place.types,
-      "address": {"city": city, "state": state, "zipcode": zipcode},
-    }
-    simplified_places.append(formatted_response)
 
-  return jsonify({"places": simplified_places}), HTTPStatus.OK
+@search_nearby_blueprint.route("/search-nearby", methods=[HTTPMethod.GET])
+def search_nearby() -> tuple[flask.Response, HTTPStatus]:
+  match do_search_nearby(request):
+    case Ok(model):
+      return jsonify(model.model_dump()), HTTPStatus.OK
+    case Err((e, status)):
+      return jsonify({"error": e}), status
