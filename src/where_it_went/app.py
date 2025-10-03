@@ -3,14 +3,12 @@ from http import HTTPMethod, HTTPStatus
 import flask
 from flask import Flask, jsonify, request
 from pydantic import BaseModel
-from requests.exceptions import HTTPError
 
 from .service.search_nearby import search_nearby_blueprint
 from .service.usa_spending_service import (
   PlaceOfPerformance,
   SpendingFilters,
   SpendingRequest,
-  SpendingResponse,
   USASpendingClient,
   USASpendingError,
 )
@@ -57,7 +55,8 @@ def search_spending_by_award() -> tuple[flask.Response, HTTPStatus]:
 
       try:
         # Creating spending request from query parameters
-        # we can customize this later based on what parameters we want to support
+        # we can customize this later based on what
+        # parameters we want to support
         spending_request: SpendingRequest = SpendingRequest(
           filters=SpendingFilters()
         )
@@ -79,25 +78,14 @@ def search_spending_by_award() -> tuple[flask.Response, HTTPStatus]:
           ), HTTPStatus.BAD_REQUEST
 
         with USASpendingClient() as client:
-          result: Result[
-            Result[SpendingResponse, Exception], HTTPError | USASpendingError
-          ] = client.search_spending_by_award(request=spending_request)
-
-          match result:
-            case Ok(inner_result):
-              match inner_result:
-                case Ok(spending_response):
-                  return jsonify(
-                    spending_response.model_dump(by_alias=True)
-                  ), HTTPStatus.OK
-                case Err(inner_error):
-                  return jsonify(
-                    {"error": f"Spending API error: {inner_error}"}
-                  ), HTTPStatus.BAD_REQUEST
-            case Err(error):
-              return jsonify(
-                {"error": f"Spending API error: {error}"}
-              ), HTTPStatus.BAD_REQUEST
+          result = client.search_spending_by_award(request=spending_request)
+        match result:
+          case Ok(spending_response):
+            return jsonify(spending_response.model_dump()), HTTPStatus.OK
+          case Err(error):
+            return jsonify(
+              USASpendingError(f"Decoding error: {error}")
+            ), HTTPStatus.BAD_REQUEST
 
       except Exception as e:
         return jsonify(
