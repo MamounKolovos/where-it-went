@@ -261,21 +261,17 @@ def spending_by_award_api_test() -> None:
     result = client.search_spending_by_award(request)
 
     match result:
-      case Ok(response):
-        # Extract the value from Ok
-        spending_response = response.unwrap()
-        print(f"    ✅ Found {len(spending_response.results)} awards")
-        if spending_response.results:
-          # Show first award details
-          first_award = spending_response.results[0]
-          amount = first_award.award_amount or 0
-          recipient = first_award.recipient_name or "Unknown"
-          print(f"    📊 Sample: ${amount:,.2f} to {recipient}")
-
-        # Assert that we got a response
-        assert isinstance(spending_response, SpendingResponse)
+      case Ok(spending_response):
+        assert len(spending_response.results) > 0
         print(
-          f"✅ API call successful, found {len(spending_response.results)} awards"  # noqa: E501
+          f"✅ API call succeeded with {len(spending_response.results)} results"
         )
+        for award in spending_response.results:
+          print(
+            (
+              f"- {award.recipient_name} received ${award.award_amount} "
+              f"for award ID {award.award_id}"
+            )
+          )
       case Err(error):
         pytest.fail(f"API call failed: {error}")

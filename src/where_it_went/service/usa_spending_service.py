@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any, Literal, Self
 
 import requests
-from flask import Blueprint
 from pydantic import BaseModel, Field
 
-from where_it_went.utils.result import Ok, Result, as_result
-
-usa_spending_report_blueprint = Blueprint("usa_spending_report", __name__)
+from where_it_went.utils import pipe, result
+from where_it_went.utils.decoding import decode_model
+from where_it_went.utils.http import parse_response_json
+from where_it_went.utils.result import Ok, Result
 
 
 class PlaceOfPerformance(BaseModel):
@@ -98,7 +98,7 @@ class USASpendingClient:
   def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
     self.client.close()
 
-  @as_result(requests.exceptions.HTTPError, USASpendingError)
+  @result.with_unwrap
   def search_spending_by_award(
     self,
     request: SpendingRequest,
@@ -122,19 +122,18 @@ class USASpendingClient:
       json=request_data,
       headers={"Content-Type": "application/json"},
     )
-    response.raise_for_status()
-
-    data = response.json()
-
-    if "error" in data:
-      raise USASpendingError(f"API error: {data['error']}")
+    response_body = pipe(
+      response,
+      parse_response_json,
+      result.map_error(lambda e: USASpendingError(f"HTTP error: {e}")),
+      result.unwrap(),
+    )
 
     # Parse the response
-    results = [Award(**award) for award in data.get("results", [])]
-    spending_response = SpendingResponse(
-      results=results,
-      page_metadata=data.get("page_metadata", {}),
-      messages=data.get("messages", []),
+    spending_response = pipe(
+      decode_model(SpendingResponse, response_body),
+      result.map_error(lambda e: USASpendingError(f"Decoding error: {e}")),
+      result.unwrap(),
     )
 
     return Ok(spending_response)
