@@ -49,50 +49,57 @@ def add() -> tuple[flask.Response, HTTPStatus]:
 def search_spending_by_award() -> tuple[flask.Response, HTTPStatus]:
   """Search for federal spending by award using USA Spending API."""
   args_result: Result[dict[str, str], str] = parse_get_json(request)
-  if isinstance(args_result, Err):
-    return jsonify({"error": args_result.err_value}), HTTPStatus.BAD_REQUEST
+  match args_result:
+    case Err(error):
+      return jsonify({"error": error}), HTTPStatus.BAD_REQUEST
+    case Ok(args):
+      print(f"DEBUG: Received args: {args}")
 
-  args: dict[str, str] = args_result.unwrap()
-  print(f"DEBUG: Received args: {args}")
-
-  try:
-    # Creating spending request from query parameters
-    # we can customize this later based on what parameters we want to support
-    spending_request: SpendingRequest = SpendingRequest(
-      filters=SpendingFilters()
-    )
-    has_filters = False
-    if "recipient" in args:
-      spending_request.filters.recipient_search_text = [args["recipient"]]
-      has_filters = True
-    if "state" in args and "zip" in args:
-      location: PlaceOfPerformance = PlaceOfPerformance(
-        country="USA", state=args["state"], zip=args["zip"]
-      )
-      spending_request.filters.place_of_performance_locations = [location]
-      has_filters = True
-    if not has_filters:
-      return jsonify(
-        {"error": "At least one filter is required."}
-      ), HTTPStatus.BAD_REQUEST
-
-    with USASpendingClient() as client:
-      result: Result[
-        Result[SpendingResponse, Exception], HTTPError | USASpendingError
-      ] = client.search_spending_by_award(request=spending_request)
-
-      match result:
-        case Ok(response):
-          spending_response: SpendingResponse = response.unwrap()
+      try:
+        # Creating spending request from query parameters
+        # we can customize this later based on what parameters we want to support
+        spending_request: SpendingRequest = SpendingRequest(
+          filters=SpendingFilters()
+        )
+        has_filters = False
+        if "recipient" in args:
+          spending_request.filters.recipient_search_text = [args["recipient"]]
+          has_filters = True
+        if "state" in args and "zip" in args:
+          location: PlaceOfPerformance = PlaceOfPerformance(
+            country="USA",
+            state=args["state"],
+            zip=args["zip"],
+          )
+          spending_request.filters.place_of_performance_locations = [location]
+          has_filters = True
+        if not has_filters:
           return jsonify(
-            spending_response.model_dump(by_alias=True)
-          ), HTTPStatus.OK
-        case Err(error):
-          return jsonify(
-            {"error": f"Spending API error: {error}"}
+            {"error": "At least one filter is required."}
           ), HTTPStatus.BAD_REQUEST
 
-  except Exception as e:
-    return jsonify(
-      {"error": f"Internal server error: {e}"}
-    ), HTTPStatus.INTERNAL_SERVER_ERROR
+        with USASpendingClient() as client:
+          result: Result[
+            Result[SpendingResponse, Exception], HTTPError | USASpendingError
+          ] = client.search_spending_by_award(request=spending_request)
+
+          match result:
+            case Ok(inner_result):
+              match inner_result:
+                case Ok(spending_response):
+                  return jsonify(
+                    spending_response.model_dump(by_alias=True)
+                  ), HTTPStatus.OK
+                case Err(inner_error):
+                  return jsonify(
+                    {"error": f"Spending API error: {inner_error}"}
+                  ), HTTPStatus.BAD_REQUEST
+            case Err(error):
+              return jsonify(
+                {"error": f"Spending API error: {error}"}
+              ), HTTPStatus.BAD_REQUEST
+
+      except Exception as e:
+        return jsonify(
+          {"error": f"Internal server error: {e}"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR

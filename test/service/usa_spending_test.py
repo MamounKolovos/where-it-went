@@ -261,21 +261,23 @@ def spending_by_award_api_test() -> None:
     result = client.search_spending_by_award(request)
 
     match result:
-      case Ok(response):
-        # Extract the value from Ok
-        spending_response = response.unwrap()
-        print(f"    ✅ Found {len(spending_response.results)} awards")
-        if spending_response.results:
-          # Show first award details
-          first_award = spending_response.results[0]
-          amount = first_award.award_amount or 0
-          recipient = first_award.recipient_name or "Unknown"
-          print(f"    📊 Sample: ${amount:,.2f} to {recipient}")
+      case Ok(inner_result):
+        match inner_result:
+          case Ok(spending_response):
+            print(f"    ✅ Found {len(spending_response.results)} awards")
+            if spending_response.results:
+              # Show first award details
+              first_award = spending_response.results[0]
+              amount = first_award.award_amount or 0
+              recipient = first_award.recipient_name or "Unknown"
+              print(f"    📊 Sample: ${amount:,.2f} to {recipient}")
 
-        # Assert that we got a response
-        assert isinstance(spending_response, SpendingResponse)
-        print(
-          f"✅ API call successful, found {len(spending_response.results)} awards"  # noqa: E501
-        )
+            # Assert that we got a response
+            assert isinstance(spending_response, SpendingResponse)
+            print(
+              f"✅ API call successful, found {len(spending_response.results)} awards"  # noqa: E501
+            )
+          case Err(inner_error):
+            pytest.fail(f"Inner API call failed: {inner_error}")
       case Err(error):
         pytest.fail(f"API call failed: {error}")
