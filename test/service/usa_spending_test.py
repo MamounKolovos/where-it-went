@@ -219,7 +219,6 @@ def create_recipient_search_test() -> None:
   print("✅ create_recipient_search method works correctly")
 
 
-@pytest.mark.integration
 def spending_by_award_api_test() -> None:
   """Test the exact same request as the PowerShell script."""
   print("🧪 Testing PowerShell-equivalent George Mason search...")
@@ -280,6 +279,3 @@ def spending_by_award_api_test() -> None:
         )
       case Err(error):
         pytest.fail(f"API call failed: {error}")
-
-
-# Test runner code removed - pytest handles test discovery and execution
