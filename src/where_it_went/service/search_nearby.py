@@ -1,4 +1,5 @@
 from http import HTTPMethod, HTTPStatus
+from typing import Any
 
 import flask
 import requests
@@ -21,7 +22,7 @@ places_session = requests.Session()
 places_session.headers.update(
   {
     "Content-Type": "application/json",
-    "X-Goog-FieldMask": "places.displayName,places.location,places.types",
+    "X-Goog-FieldMask": "places.displayName,places.location,places.types,places.formattedAddress,places.addressComponents",  # noqa: E501
   }
 )
 
@@ -42,10 +43,20 @@ class Location(BaseModel):
   longitude: float
 
 
+class AddressComponent(BaseModel):
+  long_text: str = Field(..., alias="longText")
+  short_text: str = Field(..., alias="shortText")
+  types: list[str]
+
+
 class Place(BaseModel):
   display_name: DisplayName = Field(..., alias="displayName")
   location: Location
   types: list[str]
+  formatted_address: str | None = Field(None, alias="formattedAddress")
+  address_components: list[AddressComponent] | None = Field(
+    None, alias="addressComponents"
+  )
 
 
 class NearbySearchPlacesApiResponse(BaseModel):
@@ -115,16 +126,34 @@ def search_nearby() -> tuple[flask.Response, HTTPStatus]:
 
   response_model = response_model_result.unwrap()
 
-  response_body = response_model.model_dump(
-    include={
-      "places": {
-        "__all__": {
-          "display_name": {"text"},
-          "location": {"latitude", "longitude"},
-          "types": True,
-        }
-      }
-    }
-  )
+  # Extract simplified address info for each place
+  simplified_places: list[dict[str, Any]] = []
+  for place in response_model.places:
+    city = None
+    state = None
+    zipcode = None
 
-  return jsonify(response_body), HTTPStatus.OK
+    if place.address_components:
+      for component in place.address_components:
+        if "locality" in component.types:
+          city = component.long_text
+        elif "administrative_area_level_1" in component.types:
+          state = component.short_text
+        elif "postal_code" in component.types:
+          zipcode = component.long_text
+
+    # We can add more fields to the response later if we want to
+    formatted_response: dict[
+      str, str | dict[str, float] | list[str] | dict[str, str | None]
+    ] = {
+      "display_name": place.display_name.text,
+      "location": {
+        "latitude": place.location.latitude,
+        "longitude": place.location.longitude,
+      },
+      "types": place.types,
+      "address": {"city": city, "state": state, "zipcode": zipcode},
+    }
+    simplified_places.append(formatted_response)
+
+  return jsonify({"places": simplified_places}), HTTPStatus.OK

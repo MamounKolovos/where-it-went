@@ -5,9 +5,12 @@ from __future__ import annotations
 from typing import Any, Literal, Self
 
 import requests
+from flask import Blueprint
 from pydantic import BaseModel, Field
 
 from ..utils.result import Ok, Result, as_result
+
+usa_spending_report_blueprint = Blueprint("usa_spending_report", __name__)
 
 
 class PlaceOfPerformance(BaseModel):
