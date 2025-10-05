@@ -6,19 +6,24 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - PORT=5000
       - FLASK_ENV=development
       - FLASK_DEBUG=1
+      - PORT=5000
     env_file:
       - .env
-    volumes:
-      # Mount source code for live reload during development
-      - ./src:/app/src
-      - ./pyproject.toml:/app/pyproject.toml
-      - ./uv.lock:/app/uv.lock
-    restart: unless-stopped
     networks:
       - where-it-went-network
+
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: sync
+          path: ./pyproject.toml
+          target: /app/pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
 
   redis:
     image: redis:8-alpine
@@ -26,7 +31,6 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    restart: unless-stopped
     networks:
       - where-it-went-network
 

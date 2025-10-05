@@ -1,32 +1,51 @@
-FROM python:3.13-slim
+# Using multi-stage build for production
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder 
+
+# Precompiling Python files into .pyc for faster startup 
+# And copying dependencies into the venv for portability.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy 
+
+# Disabling python downloads to use the one already in the image.
+ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# Caching dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
 
-# Copying dependency files and source code
-COPY pyproject.toml uv.lock README.md ./
-COPY src/ ./src/
+COPY . /app
 
-RUN uv sync --frozen --no-dev
-
-# Creating a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser -m appuser
-RUN mkdir -p /home/appuser/.cache/uv && chown -R appuser:appuser /app /home/appuser
+# Installing dependencies including the app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
 
-EXPOSE 5000
+# ===== Stage 2: Runtime ===== 
+FROM python:3.13-slim-bookworm
 
-# Setting environment variables
+
+
+RUN groupadd --system --gid 999 appuser \
+ && useradd --system --gid 999 --uid 999 --create-home appuser
+
+WORKDIR /app 
+ 
+ # Copying from builder 
+ COPY --from=builder --chown=appuser:appuser /app /app
+
+
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app/src
 ENV FLASK_APP=where_it_went.app:app
 ENV FLASK_ENV=production
+ENV FLASK_DEBUG=1
+
 
 USER appuser
+EXPOSE 5000
 
-# This is a Health check URL for Docker
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:5000/health', timeout=5)" || exit 1
-
-# This is to run the application
-CMD ["uv", "run", "where-it-went"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
