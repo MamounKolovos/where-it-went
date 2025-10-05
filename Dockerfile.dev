@@ -1,0 +1,27 @@
+# This will be the Development Dockerfile with live reload capabilities
+FROM python:3.13-slim
+
+WORKDIR /app
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
+
+RUN uv sync --frozen
+
+# Creating a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser
+RUN mkdir -p /home/appuser/.cache/uv && chown -R appuser:appuser /app /home/appuser
+
+EXPOSE 5000
+
+# Setting environment variables for development
+ENV PYTHONPATH=/app/src
+ENV FLASK_APP=where_it_went.app:app
+ENV FLASK_ENV=development
+ENV FLASK_DEBUG=1
+
+USER appuser
+
+CMD ["uv", "run", "where-it-went"]

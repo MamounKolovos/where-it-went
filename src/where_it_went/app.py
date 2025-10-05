@@ -27,6 +27,14 @@ class AddRequest(BaseModel):
   y: int
 
 
+@app.route("/health", methods=[HTTPMethod.GET])
+def health_check() -> tuple[flask.Response, HTTPStatus]:
+  """Health check endpoint for Docker."""
+  return jsonify(
+    {"status": "healthy", "service": "where-it-went"}
+  ), HTTPStatus.OK
+
+
 @app.route("/add", methods=[HTTPMethod.POST])
 def add() -> tuple[flask.Response, HTTPStatus]:
   add_request_result: Result[AddRequest, str] = result.do(

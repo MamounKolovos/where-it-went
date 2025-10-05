@@ -4,7 +4,7 @@ from .app import app
 
 
 def main() -> None:
-  app.run(port=config.get_port(), debug=True)
+  app.run(host="0.0.0.0", port=config.get_port(), debug=True)
   return None
 
 
