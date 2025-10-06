@@ -1,3 +1,4 @@
+import typing as t
 from http import HTTPMethod, HTTPStatus
 
 import flask
@@ -6,7 +7,8 @@ from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, Field
 
 from where_it_went import config
-from where_it_went.utils import listutils, pipe, result
+from where_it_went.service.redis_caching import fetch_or_cache_region
+from where_it_went.utils import pipe, result
 from where_it_went.utils.decoding import decode_model
 from where_it_went.utils.http import parse_get_json, parse_response_json
 from where_it_went.utils.result import Err, Ok, Result
@@ -62,6 +64,56 @@ class NearbySearchResponse(BaseModel):
   places: list[ResponsePlace]
 
 
+def _fetch_places_from_api(
+  latitude: float, longitude: float, radius: float, api_key: str
+) -> dict[str, list[dict[str, t.Any]]]:
+  """Fetch places from Google Places API and return raw dict for caching."""
+  search_nearby_request_body = {
+    "locationRestriction": {
+      "circle": {
+        "center": {
+          "latitude": latitude,
+          "longitude": longitude,
+        },
+        "radius": radius,
+      }
+    },
+    "maxResultCount": 20,
+  }
+
+  search_nearby_response = places_session.post(
+    API_URL + SEARCH_NEARBY_ENDPOINT,
+    json=search_nearby_request_body,
+    headers={"X-Goog-Api-Key": api_key},
+  )
+
+  response_body = pipe(
+    search_nearby_response,
+    parse_response_json,
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
+  )
+
+  api_response_model = pipe(
+    decode_model(NearbySearchPlacesApiResponse, response_body),
+    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
+    result.unwrap(),
+  )
+
+  # Converting to dict format for caching
+  places_data = [
+    {
+      "text": api_place.display_name.text,
+      "latitude": api_place.location.latitude,
+      "longitude": api_place.location.longitude,
+      "types": api_place.types,
+    }
+    for api_place in api_response_model.places
+  ]
+
+  return {"places": places_data}
+
+
 @result.with_unwrap
 def do_search_nearby(
   request: flask.Request,
@@ -91,53 +143,26 @@ def do_search_nearby(
     result.unwrap(),
   )
 
-  search_nearby_request_body = {
-    "locationRestriction": {
-      "circle": {
-        "center": {
-          "latitude": model.latitude,
-          "longitude": model.longitude,
-        },
-        "radius": model.radius,
-      }
-    },
-    "maxResultCount": 20,
-  }
-
-  search_nearby_response = places_session.post(
-    API_URL + SEARCH_NEARBY_ENDPOINT,
-    json=search_nearby_request_body,
-    headers={"X-Goog-Api-Key": places_api_key},
-  )
-
-  response_body = pipe(
-    search_nearby_response,
-    parse_response_json,
-    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
-    result.unwrap(),
-  )
-
-  api_response_model = pipe(
-    decode_model(NearbySearchPlacesApiResponse, response_body),
-    result.map_error(lambda e: (e, HTTPStatus.BAD_REQUEST)),
-    result.unwrap(),
-  )
-
-  places = pipe(
-    api_response_model.places,
-    listutils.map(
-      lambda api_place: ResponsePlace(
-        text=api_place.display_name.text,
-        latitude=api_place.location.latitude,
-        longitude=api_place.location.longitude,
-        types=api_place.types,
-      )
+  cached_result = fetch_or_cache_region(
+    latitude=model.latitude,
+    longitude=model.longitude,
+    radius=model.radius,
+    caller=lambda: _fetch_places_from_api(
+      model.latitude, model.longitude, model.radius, places_api_key
     ),
+    filter_by_distance=True,
   )
 
-  response_model = NearbySearchResponse(places=places)
-
-  return Ok(response_model)
+  # Converting cached result to response model as we return it to the client
+  match cached_result:
+    case Ok(cached_data):
+      places = [
+        ResponsePlace(**place_data) for place_data in cached_data["places"]
+      ]
+      response_model = NearbySearchResponse(places=places)
+      return Ok(response_model)
+    case Err(error):
+      return Err((f"Cache error: {error}", HTTPStatus.INTERNAL_SERVER_ERROR))
 
 
 @search_nearby_blueprint.route("/search-nearby", methods=[HTTPMethod.GET])
