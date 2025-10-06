@@ -4,11 +4,11 @@ import flask
 from flask import Flask, jsonify, request
 from pydantic import BaseModel
 
-from .service.search_nearby import search_nearby_blueprint
-from .utils import result
-from .utils.decoding import decode_model
-from .utils.http import parse_post_json
-from .utils.result import Err, Ok, Result
+from where_it_went.service.search_nearby import search_nearby_blueprint
+from where_it_went.utils import result
+from where_it_went.utils.decoding import decode_model
+from where_it_went.utils.http import parse_post_json
+from where_it_went.utils.result import Err, Ok, Result
 
 app = Flask(__name__)
 app.register_blueprint(search_nearby_blueprint)

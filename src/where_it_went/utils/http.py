@@ -5,7 +5,7 @@ import flask
 import requests
 from requests.exceptions import JSONDecodeError
 
-from .result import Err, Ok, Result
+from where_it_went.utils.result import Err, Ok, Result
 
 
 def parse_post_json(request: flask.Request) -> Result[Any, str]:

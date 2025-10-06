@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from .result import Err, Ok, Result
+from where_it_went.utils.result import Err, Ok, Result
 
 
 def decode_model[m: BaseModel](model: type[m], json: Any) -> Result[m, str]:

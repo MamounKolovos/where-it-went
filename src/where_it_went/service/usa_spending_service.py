@@ -7,7 +7,7 @@ from typing import Any, Literal, Self
 import requests
 from pydantic import BaseModel, Field
 
-from ..utils.result import Ok, Result, as_result
+from where_it_went.utils.result import Ok, Result, as_result
 
 
 class PlaceOfPerformance(BaseModel):
