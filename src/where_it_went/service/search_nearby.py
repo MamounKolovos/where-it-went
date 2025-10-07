@@ -177,8 +177,13 @@ def do_search_nearby(
 
 @search_nearby_blueprint.route("/search-nearby", methods=[HTTPMethod.GET])
 def search_nearby() -> tuple[flask.Response, HTTPStatus]:
+  print(
+    f"\n[DEBUG-SEARCH-NEARBY] Endpoint called with request: {request.args}\n"
+  )
   match do_search_nearby(request):
     case Ok(model):
+      print("\n[DEBUG-SEARCH-NEARBY] Successfully fetched places\n")
       return jsonify(model.model_dump()), HTTPStatus.OK
     case Err((e, status)):
+      print(f"\n[DEBUG-SEARCH-NEARBY] Error occurred: {e}\n")
       return jsonify({"error": e}), status

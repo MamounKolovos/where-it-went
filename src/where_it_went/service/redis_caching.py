@@ -50,7 +50,7 @@ def build_region_key(latitude: float, longitude: float, radius: float) -> str:
   lat_bucket = f"{round(latitude, lat_n_decimals):.{lat_n_decimals}f}"
   lon_bucket = f"{round(longitude, lon_n_decimals):.{lon_n_decimals}f}"
 
-  return f"search_nearby:lat={lat_bucket}:lon={lon_bucket}:radius={radius}"  # noqa: E501
+  return f"search_nearby:lat={lat_bucket}:lon={lon_bucket}"  # noqa: E501
 
 
 def haversine_distance_m(

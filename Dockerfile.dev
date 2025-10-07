@@ -23,6 +23,7 @@ RUN groupadd --system --gid 999 appuser \
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1
 
 USER appuser
 
