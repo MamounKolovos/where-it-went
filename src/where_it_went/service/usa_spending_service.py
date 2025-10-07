@@ -7,11 +7,10 @@ from typing import Any, Literal, Self
 import requests
 from pydantic import BaseModel, Field
 
+from where_it_went.utils import pipe, result
 from where_it_went.utils.decoding import decode_model
-
-from ..utils import pipe, result
-from ..utils.http import parse_response_json
-from ..utils.result import Ok, Result
+from where_it_went.utils.http import parse_response_json
+from where_it_went.utils.result import Ok, Result
 
 
 class PlaceOfPerformance(BaseModel):

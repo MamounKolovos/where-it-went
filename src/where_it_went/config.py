@@ -1,6 +1,6 @@
 import os
 
-from .utils.result import Err, Ok, Result
+from where_it_went.utils.result import Err, Ok, Result
 
 
 def get_port() -> int:

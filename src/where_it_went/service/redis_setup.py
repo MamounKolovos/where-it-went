@@ -7,7 +7,7 @@ import uuid
 
 import redis
 
-from ..utils.result import Err, Ok, Result
+from where_it_went.utils.result import Err, Ok, Result
 
 
 def _default_redis_url() -> str:

@@ -3,14 +3,14 @@ import time
 import typing as t
 from collections.abc import Callable
 
-from ..utils import pipe
-from ..utils.result import Err, Ok, Result
-from .redis_setup import (
+from where_it_went.service.redis_setup import (
   acquire_lock,
   get_json,
   release_lock,
   set_json,
 )
+from where_it_went.utils import pipe
+from where_it_went.utils.result import Err, Ok, Result
 
 # tuning defaults
 DEFAULT_CACHE_TTL = 300  # 5 minutes

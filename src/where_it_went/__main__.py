@@ -1,6 +1,5 @@
 from where_it_went import config
-
-from .app import app
+from where_it_went.app import app
 
 
 def main() -> None:

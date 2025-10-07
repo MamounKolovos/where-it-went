@@ -22,8 +22,11 @@ indent-width = 2
 line-length = 80
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "N"]
+select = ["E", "F", "I", "W", "N", "TID252"]
 extend-select = ["I"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [dependency-groups]
 dev = [

@@ -4,7 +4,7 @@ import itertools
 from collections.abc import Callable
 from typing import overload
 
-from .result import Err, Ok, Result
+from where_it_went.utils.result import Err, Ok, Result
 
 
 @overload
