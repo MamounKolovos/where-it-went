@@ -1,34 +1,30 @@
-2services:
-  redis:
-    image: redis
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-
+services:
   app:
-    # Build the image from the Dockerfile in the current directory
-    build: .
-
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "${APP_PORT}:${APP_PORT}"
-
     env_file:
       - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:${APP_PORT}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - where-it-went-network
 
-    command: flask run
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    restart: unless-stopped
+    networks:
+      - where-it-went-network
 
-    develop:
-      # Create a `watch` configuration to update the app
-      # https://docs.docker.com/compose/file-watch/#compose-watch-versus-bind-mounts
-      watch:
-        # Sync the working directory with the `/app` directory in the container
-        - action: sync
-          path: .
-          target: /app
-          # Exclude the project virtual environment — it could be for a
-          # different platform in the container
-          ignore:
-            - .venv/
-
-        # Rebuild the image if dependencies change by checking uv.lock
-        - action: rebuild
-          path: ./uv.lock
+networks:
+  where-it-went-network:
+    driver: bridge

@@ -37,15 +37,9 @@ WORKDIR /app
  # Copying from builder 
  COPY --from=builder --chown=appuser:appuser /app /app
 
-
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app/src
-ENV FLASK_APP=where_it_went.app:app
-ENV FLASK_ENV=production
-ENV FLASK_DEBUG=1
-
 
 USER appuser
-EXPOSE 5000
 
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "run"]
