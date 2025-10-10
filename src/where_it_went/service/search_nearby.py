@@ -74,6 +74,10 @@ class NearbySearchResponse(BaseModel):
   places: list[ResponsePlace]
 
 
+# TODO: Handle error when there is no Places found
+# TODO: Change text to Name in `ResponsePlace` model
+# TODO: Add Address components to `ResponsePlace` model specifically Country,
+# State, Zip code
 def _fetch_places_from_api(
   latitude: float, longitude: float, radius: float, api_key: str
 ) -> dict[str, list[dict[str, t.Any]]]:
@@ -157,8 +161,8 @@ def do_search_nearby(
     latitude=model.latitude,
     longitude=model.longitude,
     radius=model.radius,
-    caller=lambda: _fetch_places_from_api(
-      model.latitude, model.longitude, model.radius, places_api_key
+    caller=lambda center_lat, center_lon, radius: _fetch_places_from_api(
+      center_lat, center_lon, radius, places_api_key
     ),
     filter_by_distance=True,
   )

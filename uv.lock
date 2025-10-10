@@ -330,6 +330,15 @@ wheels = [
 ]
 
 [[package]]
+name = "s2cell"
+version = "1.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/20/af36f1ea970ac6b1a9acb481d039d433a6f3add736b6a7630e840ac25652/s2cell-1.8.0.tar.gz", hash = "sha256:6ba0f06b2c9fe415259194295ef1e0794e18dafcb84880de5b6fa627c4a8eea8", size = 23404, upload-time = "2024-03-01T23:47:03.043Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/9c/af2c4e20b132c3351a2b026488c4ee2d515732315bc34d9a46f4b6db617b/s2cell-1.8.0-py3-none-any.whl", hash = "sha256:25b488fc8955b7919bc6477c9be38abce7793b70400dd3a1463e858dffb59568", size = 19240, upload-time = "2024-03-01T23:47:01.329Z" },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -380,6 +389,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "redis" },
     { name = "requests" },
+    { name = "s2cell" },
 ]
 
 [package.dev-dependencies]
@@ -395,6 +405,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.9" },
     { name = "redis", specifier = ">=5.0.0" },
     { name = "requests", specifier = ">=2.32.5" },
+    { name = "s2cell", specifier = ">=0.5.0" },
 ]
 
 [package.metadata.requires-dev]

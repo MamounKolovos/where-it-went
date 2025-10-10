@@ -103,7 +103,7 @@ def acquire_lock(
     return Err(f"Redis error acquiring lock '{key}': {e}")
 
 
-def release_lock(key: str, token: str) -> Result[dict[str, bool | str], str]:
+def release_lock(key: str, token: str) -> Result[bool, str]:
   """
   Release a lock only if the token matches.
   Uses a Lua script for atomic check-and-delete.
@@ -120,7 +120,10 @@ def release_lock(key: str, token: str) -> Result[dict[str, bool | str], str]:
     """
 
     result = redis_client.eval(script, 1, lock_key, token)
-    return Ok({"success": bool(result), "method": "lua_script"})
+    print(
+      f"\n[DEBUG-REDIS-SETUP] Released lock using lua script '{key}' with token '{token}': {result}\n"  # noqa: E501
+    )  # noqa: E501
+    return Ok(bool(result))
   except Exception as e:
     # Best-effort fallback
     try:
@@ -129,8 +132,11 @@ def release_lock(key: str, token: str) -> Result[dict[str, bool | str], str]:
       current_lock_token = redis_client.get(lock_key)
       if current_lock_token == token:
         result = redis_client.delete(lock_key)
-        return Ok({"success": bool(result), "method": "fallback"})
-      return Ok({"success": False, "method": "fallback"})
+        print(
+          f"\n[DEBUG-REDIS-SETUP] Released lock using fallback '{key}' with token '{token}': {result}\n"  # noqa: E501
+        )  # noqa: E501
+        return Ok(bool(result))
+      return Ok(False)
     except Exception as fallback_error:
       return Err(
         f"Redis error releasing lock '{key}': {e}, fallback failed: {fallback_error}"  # noqa: E501
