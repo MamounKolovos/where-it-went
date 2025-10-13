@@ -216,3 +216,31 @@ def group[k, v](to_key: Callable[[v], k], lst: list[v] | None = None) -> object:
       return apply
     case lst:
       return do_group(to_key, lst)
+
+
+@overload
+def argmax[a, b: int | float](func: Callable[[a], b], lst: list[a]) -> a: ...
+
+
+@overload
+def argmax[a, b: int | float](
+  func: Callable[[a], b],
+) -> Callable[[list[a]], a]: ...
+
+
+def argmax[a, b: int | float](
+  func: Callable[[a], b], lst: list[a] | None = None
+) -> object:
+  """
+  Applies the given function to every element in the list and returns
+  the element that produced the highest value
+  """
+  match lst:
+    case None:
+
+      def apply(lst: list[a]) -> a:
+        return max(lst, key=func)
+
+      return apply
+    case lst:
+      return max(lst, key=func)
