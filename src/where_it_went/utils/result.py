@@ -228,6 +228,34 @@ def unwrap[a, e](result: Result[a, e] | None = None) -> object:
 
 
 @overload
+def unwrap_or[a, e](default: a, result: Result[a, e]) -> a: ...
+
+
+@overload
+def unwrap_or[a, e](default: a) -> Callable[[Result[a, e]], a]: ...
+
+
+def do_unwrap_or[a, e](default: a, result: Result[a, e]) -> a:
+  match result:
+    case Ok(value):
+      return value
+    case Err(_):
+      return default
+
+
+def unwrap_or[a, e](default: a, result: Result[a, e] | None = None) -> object:
+  match result:
+    case None:
+
+      def apply(result: Result[a, e]) -> a:
+        return do_unwrap_or(default, result)
+
+      return apply
+    case result:
+      return do_unwrap_or(default, result)
+
+
+@overload
 def replace_error[a, e, f](error: f, result: Result[a, e]) -> Result[a, f]: ...
 
 
