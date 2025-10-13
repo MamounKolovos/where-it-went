@@ -244,3 +244,43 @@ def argmax[a, b: int | float](
       return apply
     case lst:
       return max(lst, key=func)
+
+
+@overload
+def find[a](
+  is_desired: Callable[[a], bool], lst: list[a]
+) -> Result[a, None]: ...
+
+
+@overload
+def find[a](
+  is_desired: Callable[[a], bool],
+) -> Callable[[list[a]], Result[a, None]]: ...
+
+
+def do_find[a](
+  is_desired: Callable[[a], bool], lst: list[a]
+) -> Result[a, None]:
+  for element in lst:
+    match is_desired(element):
+      case True:
+        return Ok(element)
+      case False:
+        pass
+
+  return Err(None)
+
+
+def find[a](
+  is_desired: Callable[[a], bool], lst: list[a] | None = None
+) -> object:
+  match lst:
+    case None:
+
+      def apply(lst: list[a]) -> Result[a, None]:
+        return do_find(is_desired, lst)
+
+      return apply
+
+    case lst:
+      return do_find(is_desired, lst)
