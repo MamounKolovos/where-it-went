@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Any, Callable
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from redis import Redis
@@ -124,21 +123,85 @@ def cache_places(
 MAX_RECURSION_LEVEL = 16
 
 
+def calc_dist_from_region_to_nearest_boundary(
+  region: s2helpers.SearchRegion, parent: s2helpers.Cell
+) -> float:
+  parent_bounds = s2helpers.get_bounds(parent)
+  dist_from_point_to_top_edge = s2helpers.haversine_distance(
+    region.latitude,
+    region.longitude,
+    parent_bounds.latitude_max,
+    region.longitude,
+  )
+  dist_from_point_to_bottom_edge = s2helpers.haversine_distance(
+    region.latitude,
+    region.longitude,
+    parent_bounds.latitude_min,
+    region.longitude,
+  )
+  dist_from_point_to_left_edge = s2helpers.haversine_distance(
+    region.latitude,
+    region.longitude,
+    region.latitude,
+    parent_bounds.longitude_min,
+  )
+  dist_from_point_to_right_edge = s2helpers.haversine_distance(
+    region.latitude,
+    region.longitude,
+    region.latitude,
+    parent_bounds.longitude_max,
+  )
+  dist_from_point_to_nearest_boundary = min(
+    dist_from_point_to_top_edge,
+    dist_from_point_to_bottom_edge,
+    dist_from_point_to_left_edge,
+    dist_from_point_to_right_edge,
+  )
+  return dist_from_point_to_nearest_boundary
+
+
 def get_places_in_region(
   client: Redis, region: s2helpers.SearchRegion
 ) -> list[Place]:
+  print(
+    f"\n[DEBUG] === Getting places for region at ({region.latitude:.6f}, {region.longitude:.6f}) with radius {region.radius}m ==="  # noqa: E501
+  )
   cell = s2helpers.search_region_to_cell(region)
+  print(f"[DEBUG] Region cell: {cell.token} (level {cell.level})")
   parent = s2helpers.get_parent(cell)
-  places = get_places_in_region_loop(client, region, parent)
-  cache_places(client, parent, places)
+  print(f"[DEBUG] Parent cell: {parent.token} (level {parent.level})")
+  parent_neighbors = [parent]
+  places_included: list[Place] = []
+  dist_from_point_to_cell_boundary = calc_dist_from_region_to_nearest_boundary(
+    region, parent
+  )
+  print(
+    f"[DEBUG] Distance to nearest boundary: {dist_from_point_to_cell_boundary:.2f}m"  # noqa: E501
+  )
+  if dist_from_point_to_cell_boundary <= region.radius:
+    parent_neighbors.extend(s2helpers.get_neighbors(parent))
+    print(
+      f"[DEBUG] Region extends beyond parent boundary - checking {len(parent_neighbors)} cells"  # noqa: E501
+    )
+  else:
+    print("[DEBUG] Region stays within parent cell - checking 1 cell")
 
-  return listutils.filter(
+  for neighbor in parent_neighbors:
+    places = get_places_in_region_loop(client, region, neighbor)
+    cache_places(client, neighbor, places)
+    places_included.extend(places)
+
+  filtered_places = listutils.filter(
     lambda place: s2helpers.haversine_distance(
       region.latitude, region.longitude, place.latitude, place.longitude
     )
     <= region.radius,
-    places,
+    places_included,
   )
+  print(
+    f"[DEBUG] Total places found: {len(filtered_places)} (from {len(places_included)} before filtering)"  # noqa: E501
+  )
+  return filtered_places
 
 
 def get_places_in_region_loop(
@@ -164,7 +227,7 @@ def get_places_in_region_loop(
             cache_places(client, child, child_places)
             places.extend(child_places)
           case Err(CorruptedValue()):
-            print("Value corrupted")
+            print("[DEBUG] Value corrupted")
             pass
           case _:
             pass
