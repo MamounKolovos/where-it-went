@@ -215,9 +215,9 @@ def search_region_intersects_cell(region: SearchRegion, cell: Cell) -> bool:
   return distance <= region.radius
 
 
-def get_intersecting_cells(region: SearchRegion) -> list[Cell]:
-  center_cell = search_region_to_cell(region)
-
+def get_intersecting_cells(
+  region: SearchRegion, center_cell: Cell
+) -> list[Cell]:
   intersecting_neighbors = pipe(
     center_cell,
     get_neighbors,

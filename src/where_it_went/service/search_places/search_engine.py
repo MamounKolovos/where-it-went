@@ -151,6 +151,18 @@ def calc_dist_from_region_to_nearest_boundary(
     region.latitude,
     parent_bounds.longitude_max,
   )
+  print(
+    f"[DEBUG] Dist from point to top edge: {dist_from_point_to_top_edge}m"  # noqa: E501
+  )
+  print(
+    f"[DEBUG] Dist from point to bottom edge: {dist_from_point_to_bottom_edge}m"  # noqa: E501
+  )
+  print(
+    f"[DEBUG] Dist from point to left edge: {dist_from_point_to_left_edge}m"  # noqa: E501
+  )
+  print(
+    f"[DEBUG] Dist from point to right edge: {dist_from_point_to_right_edge}m"  # noqa: E501
+  )
   dist_from_point_to_nearest_boundary = min(
     dist_from_point_to_top_edge,
     dist_from_point_to_bottom_edge,
@@ -170,7 +182,8 @@ def get_places_in_region(
   print(f"[DEBUG] Region cell: {cell.token} (level {cell.level})")
   parent = s2helpers.get_parent(cell)
   print(f"[DEBUG] Parent cell: {parent.token} (level {parent.level})")
-  parent_neighbors = [parent]
+  # including parent cell only when the region is within the cell
+  neighbors = [cell]
   places_included: list[Place] = []
   dist_from_point_to_cell_boundary = calc_dist_from_region_to_nearest_boundary(
     region, parent
@@ -179,14 +192,15 @@ def get_places_in_region(
     f"[DEBUG] Distance to nearest boundary: {dist_from_point_to_cell_boundary:.2f}m"  # noqa: E501
   )
   if dist_from_point_to_cell_boundary <= region.radius:
-    parent_neighbors.extend(s2helpers.get_neighbors(parent))
+    neighbors.extend(s2helpers.get_intersecting_cells(region, cell))
+
     print(
-      f"[DEBUG] Region extends beyond parent boundary - checking {len(parent_neighbors)} cells"  # noqa: E501
+      f"[DEBUG] Region extends beyond cell boundary - checking {len(neighbors)} cells"  # noqa: E501
     )
   else:
     print("[DEBUG] Region stays within parent cell - checking 1 cell")
 
-  for neighbor in parent_neighbors:
+  for neighbor in neighbors if neighbors else [parent]:
     places = get_places_in_region_loop(client, region, neighbor)
     cache_places(client, neighbor, places)
     places_included.extend(places)

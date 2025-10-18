@@ -1,9 +1,6 @@
 import fakeredis
-from dotenv import load_dotenv
 
 from where_it_went.service.search_places import s2helpers, search_engine
-
-_ = load_dotenv()
 
 
 def gmu_caching_two_requests_test() -> None:
@@ -15,16 +12,16 @@ def gmu_caching_two_requests_test() -> None:
   potomac_heights = (38.826589169752516, -77.30255757609915)
   liberty_square = (38.82802502454114, -77.30240851473394)
 
-  print("\n" + "=" * 70)
-  print("REQUEST 1: Potomac Heights GMU with 300m radius")
-  print("=" * 70)
-
   # First request: Potomac Heights with 300m radius
   region1 = s2helpers.SearchRegion(
     latitude=potomac_heights[0],
     longitude=potomac_heights[1],
     radius=300.0,
   )
+
+  print("\n" + "=" * 70)
+  print(f"REQUEST 1: Potomac Heights GMU with {region1.radius}m radius")
+  print("=" * 70)
 
   request_1_places = search_engine.get_places_in_region(fake_redis, region1)
   print(f"\n[TEST] Request 1 returned {len(request_1_places)} places")
@@ -35,16 +32,16 @@ def gmu_caching_two_requests_test() -> None:
         f"  - {place.name} at ({place.latitude:.6f}, {place.longitude:.6f})"
       )
 
-  print("\n" + "=" * 70)
-  print("REQUEST 2: Liberty Square GMU with 300m radius")
-  print("=" * 70)
-
   # Second request: Liberty Square with 500m radius
   region2 = s2helpers.SearchRegion(
     latitude=liberty_square[0],
     longitude=liberty_square[1],
     radius=300.0,
   )
+
+  print("\n" + "=" * 70)
+  print(f"REQUEST 2: Liberty Square GMU with {region2.radius}m radius")
+  print("=" * 70)
 
   places2 = search_engine.get_places_in_region(fake_redis, region2)
   print(f"\n[TEST] Request 2 returned {len(places2)} places")
