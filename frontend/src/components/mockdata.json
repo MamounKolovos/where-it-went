@@ -1,0 +1,139 @@
+{
+    "places": [
+    {
+    "latitude": 38.831457799999995,
+    "longitude": -77.31174709999999,
+    "text": "George Mason University",
+    "types": [
+    "university",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8268505,
+    "longitude": -77.30967299999999,
+    "text": "EagleBank Arena",
+    "types": [
+    "arena",
+    "event_venue",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.826404499999995,
+    "longitude": -77.3079975,
+    "text": "Lot A GMU",
+    "types": [
+    "parking",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8295496,
+    "longitude": -77.3092812,
+    "text": "Center for the Arts",
+    "types": [
+    "performing_arts_theater",
+    "event_venue",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8305404,
+    "longitude": -77.3118365,
+    "text": "Recreation and Athletic Complex",
+    "types": [
+    "gym",
+    "sports_activity_location",
+    "point_of_interest",
+    "health",
+    "establishment"
+    ]
+    },
+
+    {
+    "latitude": 38.8321235,
+    "longitude": -77.30714379999999,
+    "text": "Fenwick Library",
+    "types": [
+    "library",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8310819,
+    "longitude": -77.3076119,
+    "text": "Horizon Hall",
+    "types": [
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.834116200000004,
+    "longitude": -77.31490889999999,
+    "text": "GMU Field House",
+    "types": [
+    "sports_complex",
+    "stadium",
+    "event_venue",
+    "athletic_field",
+    "sports_activity_location",
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8250762,
+    "longitude": -77.3153818,
+    "text": "Giant Food",
+    "types": [
+    "grocery_store",
+    "food_store",
+    "food",
+    "point_of_interest",
+    "store",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.82848,
+    "longitude": -77.30747079999999,
+    "text": "Innovation Hall",
+    "types": [
+    "point_of_interest",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.8250514,
+    "longitude": -77.3146816,
+    "text": "Insomnia Cookies",
+    "types": [
+    "dessert_shop",
+    "bakery",
+    "ice_cream_shop",
+    "confectionery",
+    "food_store",
+    "food",
+    "point_of_interest",
+    "store",
+    "establishment"
+    ]
+    },
+    {
+    "latitude": 38.830683199999996,
+    "longitude": -77.30478060000002,
+    "text": "The Hub",
+    "types": [
+    "point_of_interest",
+    "establishment"
+    ]
+    }
+    ]
+    }
