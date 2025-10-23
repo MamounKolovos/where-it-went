@@ -24,6 +24,15 @@ wheels = [
 ]
 
 [[package]]
+name = "bidict"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/6e/026678aa5a830e07cd9498a05d3e7e650a4f56a42f267a53d22bcda1bdc9/bidict-0.23.1.tar.gz", hash = "sha256:03069d763bc387bbd20e7d49914e75fc4132a41937fa3405417e1a5a2d006d71", size = 29093, upload-time = "2024-02-18T19:09:05.748Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/37/e8730c3587a65eb5645d4aba2d27aae48e8003614d6aaf15dda67f702f1f/bidict-0.23.1-py3-none-any.whl", hash = "sha256:5dae8d4d79b552a71cbabc7deb25dfe8ce710b17ff41711e13010ead2abfc3e5", size = 32764, upload-time = "2024-02-18T19:09:04.156Z" },
+]
+
+[[package]]
 name = "blinker"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -94,6 +103,28 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
+]
+
+[[package]]
+name = "eventlet"
+version = "0.40.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "greenlet" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ce/4f/1e5227b23aa77d9ea05056b98cf0bf187cca994991060245002b640f9830/eventlet-0.40.3.tar.gz", hash = "sha256:290852db0065d78cec17a821b78c8a51cafb820a792796a354592ae4d5fceeb0", size = 565741, upload-time = "2025-08-27T09:56:16.085Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/b4/981362608131dc4ee8de9fdca6a38ef19e3da66ab6a13937bd158882db91/eventlet-0.40.3-py3-none-any.whl", hash = "sha256:e681cae6ee956cfb066a966b5c0541e734cc14879bda6058024104790595ac9d", size = 364333, upload-time = "2025-08-27T09:56:10.774Z" },
+]
+
+[[package]]
 name = "fakeredis"
 version = "2.32.0"
 source = { registry = "https://pypi.org/simple" }
@@ -104,6 +135,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e1/2e/94ca3f2ff35f086d7d3eeb924054e328b2ac851f0a20302d942c8d29726c/fakeredis-2.32.0.tar.gz", hash = "sha256:63d745b40eb6c8be4899cf2a53187c097ccca3afbca04fdbc5edc8b936cd1d59", size = 171097, upload-time = "2025-10-07T10:46:58.876Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0e/1b/84ab7fd197eba5243b6625c78fbcffaa4cf6ac7dda42f95d22165f52187e/fakeredis-2.32.0-py3-none-any.whl", hash = "sha256:c9da8228de84060cfdb72c3cf4555c18c59ba7a5ae4d273f75e4822d6f01ecf8", size = 118422, upload-time = "2025-10-07T10:46:57.643Z" },
+]
+
+[package.optional-dependencies]
+lua = [
+    { name = "lupa" },
 ]
 
 [[package]]
@@ -121,6 +157,52 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/dc/6d/cfe3c0fcc5e477df242b98bfe186a4c34357b4847e87ecaef04507332dab/flask-3.1.2.tar.gz", hash = "sha256:bf656c15c80190ed628ad08cdfd3aaa35beb087855e2f494910aa3774cc4fd87", size = 720160, upload-time = "2025-08-19T21:03:21.205Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/f9/7f9263c5695f4bd0023734af91bedb2ff8209e8de6ead162f35d8dc762fd/flask-3.1.2-py3-none-any.whl", hash = "sha256:ca1d8112ec8a6158cc29ea4858963350011b5c846a414cdb7a954aa9e967d03c", size = 103308, upload-time = "2025-08-19T21:03:19.499Z" },
+]
+
+[[package]]
+name = "flask-socketio"
+version = "5.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+    { name = "python-socketio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/1f/54d3de4982df695682af99c65d4b89f8a46fe6739780c5a68690195835a0/flask_socketio-5.5.1.tar.gz", hash = "sha256:d946c944a1074ccad8e99485a6f5c79bc5789e3ea4df0bb9c864939586c51ec4", size = 37401, upload-time = "2025-01-06T19:49:59.056Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/38/1b75b3ba3452860211ec87710f9854112911a436ee4d155533e0b83b5cd9/Flask_SocketIO-5.5.1-py3-none-any.whl", hash = "sha256:35a50166db44d055f68021d6ec32cb96f1f925cd82de4504314be79139ea846f", size = 18259, upload-time = "2025-01-06T19:49:56.555Z" },
+]
+
+[[package]]
+name = "greenlet"
+version = "3.2.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/b8/704d753a5a45507a7aab61f18db9509302ed3d0a27ac7e0359ec2905b1a6/greenlet-3.2.4.tar.gz", hash = "sha256:0dca0d95ff849f9a364385f36ab49f50065d76964944638be9691e1832e9f86d", size = 188260, upload-time = "2025-08-07T13:24:33.51Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/e8/58c7f85958bda41dafea50497cbd59738c5c43dbbea5ee83d651234398f4/greenlet-3.2.4-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:1a921e542453fe531144e91e1feedf12e07351b1cf6c9e8a3325ea600a715a31", size = 272814, upload-time = "2025-08-07T13:15:50.011Z" },
+    { url = "https://files.pythonhosted.org/packages/62/dd/b9f59862e9e257a16e4e610480cfffd29e3fae018a68c2332090b53aac3d/greenlet-3.2.4-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:cd3c8e693bff0fff6ba55f140bf390fa92c994083f838fece0f63be121334945", size = 641073, upload-time = "2025-08-07T13:42:57.23Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/0b/bc13f787394920b23073ca3b6c4a7a21396301ed75a655bcb47196b50e6e/greenlet-3.2.4-cp313-cp313-manylinux2014_ppc64le.manylinux_2_17_ppc64le.whl", hash = "sha256:710638eb93b1fa52823aa91bf75326f9ecdfd5e0466f00789246a5280f4ba0fc", size = 655191, upload-time = "2025-08-07T13:45:29.752Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/d6/6adde57d1345a8d0f14d31e4ab9c23cfe8e2cd39c3baf7674b4b0338d266/greenlet-3.2.4-cp313-cp313-manylinux2014_s390x.manylinux_2_17_s390x.whl", hash = "sha256:c5111ccdc9c88f423426df3fd1811bfc40ed66264d35aa373420a34377efc98a", size = 649516, upload-time = "2025-08-07T13:53:16.314Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/3b/3a3328a788d4a473889a2d403199932be55b1b0060f4ddd96ee7cdfcad10/greenlet-3.2.4-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d76383238584e9711e20ebe14db6c88ddcedc1829a9ad31a584389463b5aa504", size = 652169, upload-time = "2025-08-07T13:18:32.861Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/43/3cecdc0349359e1a527cbf2e3e28e5f8f06d3343aaf82ca13437a9aa290f/greenlet-3.2.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:23768528f2911bcd7e475210822ffb5254ed10d71f4028387e5a99b4c6699671", size = 610497, upload-time = "2025-08-07T13:18:31.636Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/19/06b6cf5d604e2c382a6f31cafafd6f33d5dea706f4db7bdab184bad2b21d/greenlet-3.2.4-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:00fadb3fedccc447f517ee0d3fd8fe49eae949e1cd0f6a611818f4f6fb7dc83b", size = 1121662, upload-time = "2025-08-07T13:42:41.117Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/15/0d5e4e1a66fab130d98168fe984c509249c833c1a3c16806b90f253ce7b9/greenlet-3.2.4-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:d25c5091190f2dc0eaa3f950252122edbbadbb682aa7b1ef2f8af0f8c0afefae", size = 1149210, upload-time = "2025-08-07T13:18:24.072Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/55/2321e43595e6801e105fcfdee02b34c0f996eb71e6ddffca6b10b7e1d771/greenlet-3.2.4-cp313-cp313-win_amd64.whl", hash = "sha256:554b03b6e73aaabec3745364d6239e9e012d64c68ccd0b8430c64ccc14939a8b", size = 299685, upload-time = "2025-08-07T13:24:38.824Z" },
+    { url = "https://files.pythonhosted.org/packages/22/5c/85273fd7cc388285632b0498dbbab97596e04b154933dfe0f3e68156c68c/greenlet-3.2.4-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:49a30d5fda2507ae77be16479bdb62a660fa51b1eb4928b524975b3bde77b3c0", size = 273586, upload-time = "2025-08-07T13:16:08.004Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/75/10aeeaa3da9332c2e761e4c50d4c3556c21113ee3f0afa2cf5769946f7a3/greenlet-3.2.4-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:299fd615cd8fc86267b47597123e3f43ad79c9d8a22bebdce535e53550763e2f", size = 686346, upload-time = "2025-08-07T13:42:59.944Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/aa/687d6b12ffb505a4447567d1f3abea23bd20e73a5bed63871178e0831b7a/greenlet-3.2.4-cp314-cp314-manylinux2014_ppc64le.manylinux_2_17_ppc64le.whl", hash = "sha256:c17b6b34111ea72fc5a4e4beec9711d2226285f0386ea83477cbb97c30a3f3a5", size = 699218, upload-time = "2025-08-07T13:45:30.969Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/8b/29aae55436521f1d6f8ff4e12fb676f3400de7fcf27fccd1d4d17fd8fecd/greenlet-3.2.4-cp314-cp314-manylinux2014_s390x.manylinux_2_17_s390x.whl", hash = "sha256:b4a1870c51720687af7fa3e7cda6d08d801dae660f75a76f3845b642b4da6ee1", size = 694659, upload-time = "2025-08-07T13:53:17.759Z" },
+    { url = "https://files.pythonhosted.org/packages/92/2e/ea25914b1ebfde93b6fc4ff46d6864564fba59024e928bdc7de475affc25/greenlet-3.2.4-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:061dc4cf2c34852b052a8620d40f36324554bc192be474b9e9770e8c042fd735", size = 695355, upload-time = "2025-08-07T13:18:34.517Z" },
+    { url = "https://files.pythonhosted.org/packages/72/60/fc56c62046ec17f6b0d3060564562c64c862948c9d4bc8aa807cf5bd74f4/greenlet-3.2.4-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:44358b9bf66c8576a9f57a590d5f5d6e72fa4228b763d0e43fee6d3b06d3a337", size = 657512, upload-time = "2025-08-07T13:18:33.969Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/a5/6ddab2b4c112be95601c13428db1d8b6608a8b6039816f2ba09c346c08fc/greenlet-3.2.4-cp314-cp314-win_amd64.whl", hash = "sha256:e37ab26028f12dbb0ff65f29a8d3d44a765c61e729647bf2ddfbbed621726f01", size = 303425, upload-time = "2025-08-07T13:32:27.59Z" },
+]
+
+[[package]]
+name = "h11"
+version = "0.16.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
 ]
 
 [[package]]
@@ -160,6 +242,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d", size = 245115, upload-time = "2025-03-05T20:05:02.478Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
+]
+
+[[package]]
+name = "lupa"
+version = "2.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/51/4e20b597795b58f840289042d87d65f0e33cdc73653a4c1c7026346e1725/lupa-2.5.tar.gz", hash = "sha256:69c6a89f2b7b08a3040d7ed2a1eeccba37a31ddc92fa199339c53a2ae3c48c34", size = 7235982, upload-time = "2025-06-15T15:31:51.745Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/82/e535e181d751cbd0cc8465c0c3f8f162d8cd69ba075c9916912b6a7c5830/lupa-2.5-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:61f09dbb8af779d78f90d71811798710a29b455c6948ea51365eefc0ab142a0d", size = 897899, upload-time = "2025-06-15T15:30:17.572Z" },
+    { url = "https://files.pythonhosted.org/packages/17/9f/2b16dfd4bea0effa256e51b446a543c1d95b059bd7217a671c8b3c0adec5/lupa-2.5-cp313-cp313-macosx_11_0_universal2.whl", hash = "sha256:e372577ac3b54a4d13d43e43de2111ad48b6fabb8f7545f40bcd989e6c13b128", size = 1841869, upload-time = "2025-06-15T15:30:19.635Z" },
+    { url = "https://files.pythonhosted.org/packages/19/34/c0219eaf75e60777973a1bc317483f6569b7e662e8c0295cf667dfa39ef1/lupa-2.5-cp313-cp313-macosx_11_0_x86_64.whl", hash = "sha256:671c7c38197a2d11040bb0e05593063ee62b29a67c982dda688bb2ef30b81670", size = 965235, upload-time = "2025-06-15T15:30:21.93Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/a7/54df82f921088ba125a48d1cb74778200013ec3814f5d45a63e92832405c/lupa-2.5-cp313-cp313-manylinux2010_i686.manylinux2014_i686.manylinux_2_12_i686.manylinux_2_17_i686.whl", hash = "sha256:5cfbbec4cb74ad70b5d1747de1537095e21cb57ca70d2a6186738322d82cf917", size = 1120634, upload-time = "2025-06-15T15:30:24.454Z" },
+    { url = "https://files.pythonhosted.org/packages/94/72/31e52086abcc34e1787ecbf7b913c039551dd42f8fa9610ae0f64bc36fb0/lupa-2.5-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:867430dde43c8cf463cd72d03b07a9158f2bee79bbdae08b0fb1e6e32982853e", size = 1037562, upload-time = "2025-06-15T15:30:26.535Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/31/96305ed6e702f9b22859c4422aa258d33f005546b8198b954bcb6c2294c9/lupa-2.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4326c120ae18de3fed09ea37be792a568a8433c7f3e01e0c7e32f883d98fc5a5", size = 2072701, upload-time = "2025-06-15T15:30:28.925Z" },
+    { url = "https://files.pythonhosted.org/packages/37/9b/6440cde2f09b83c42ed3c6f121d0b8b9cf39f539960226600c8f72e2556f/lupa-2.5-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:78308d2ea41e2fae47659fe671725d5346d61d9d894d22b36e427f259b5a0cf1", size = 1057425, upload-time = "2025-06-15T15:30:30.988Z" },
+    { url = "https://files.pythonhosted.org/packages/37/f4/9f5fb25df939408bac4b088c1ca42c96fb1606ac40aa1c6c28cc9f43e585/lupa-2.5-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:5a9c12e74faaea60ae50a6d2670eb7e7cfc0b036045912bb37a15753a702fc28", size = 1172440, upload-time = "2025-06-15T15:30:33.147Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/3a/adebc756f088416c276359978a982a00b755aa3f23def7f7f6ec1d023105/lupa-2.5-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:2a848ed378fbfcf735780116265bd2e68600691efefb4f7ff326a4ac089189d5", size = 2166142, upload-time = "2025-06-15T15:30:35.232Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/8a/fedac88be2af4bdf7e981d9eecfb2defe612004a22fb745978f68d9ddbee/lupa-2.5-cp313-cp313-win32.whl", hash = "sha256:1ea65fb8046bf2c7cf39dfb3677ce5e25d5ea1330e7f9bce9b274fcdf55db29b", size = 1422328, upload-time = "2025-06-15T15:30:37.057Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/38/9572b19463ee5aebcb4a503dee7d9f908179ee1b80e6dfc21300b156ee04/lupa-2.5-cp313-cp313-win_amd64.whl", hash = "sha256:e8d52999947d3d09c1dd2cf572cfb90a0ced3185f702e75f4b1a3ba4276b3c97", size = 1694135, upload-time = "2025-06-15T15:30:38.944Z" },
 ]
 
 [[package]]
@@ -293,6 +394,31 @@ wheels = [
 ]
 
 [[package]]
+name = "python-engineio"
+version = "4.12.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "simple-websocket" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c9/d8/63e5535ab21dc4998ba1cfe13690ccf122883a38f025dca24d6e56c05eba/python_engineio-4.12.3.tar.gz", hash = "sha256:35633e55ec30915e7fc8f7e34ca8d73ee0c080cec8a8cd04faf2d7396f0a7a7a", size = 91910, upload-time = "2025-09-28T06:31:36.765Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/f0/c5aa0a69fd9326f013110653543f36ece4913c17921f3e1dbd78e1b423ee/python_engineio-4.12.3-py3-none-any.whl", hash = "sha256:7c099abb2a27ea7ab429c04da86ab2d82698cdd6c52406cb73766fe454feb7e1", size = 59637, upload-time = "2025-09-28T06:31:35.354Z" },
+]
+
+[[package]]
+name = "python-socketio"
+version = "5.14.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bidict" },
+    { name = "python-engineio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/80/f31077368adbf65be17245ee69cbccde2891582623e6a8ad647c7a254db3/python_socketio-5.14.2.tar.gz", hash = "sha256:5da35caa04059048a4521b1378340a33a15439c6a748765046112fa0d145fb1b", size = 124111, upload-time = "2025-10-15T18:59:43.838Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/5b/821733876bad200638237d1cab671b46cfdafb73c0b4094f59c5947155ae/python_socketio-5.14.2-py3-none-any.whl", hash = "sha256:d7133f040ac7ba540f9a907cb4c36d6c4d1d54eb35e482aad9d45c22fca10654", size = 78941, upload-time = "2025-10-15T18:59:42.122Z" },
+]
+
+[[package]]
 name = "redis"
 version = "6.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -352,6 +478,18 @@ wheels = [
 ]
 
 [[package]]
+name = "simple-websocket"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wsproto" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/d4/bfa032f961103eba93de583b161f0e6a5b63cebb8f2c7d0c6e6efe1e3d2e/simple_websocket-1.1.0.tar.gz", hash = "sha256:7939234e7aa067c534abdab3a9ed933ec9ce4691b0713c78acb195560aa52ae4", size = 17300, upload-time = "2024-10-10T22:39:31.412Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/52/59/0782e51887ac6b07ffd1570e0364cf901ebc36345fea669969d2084baebb/simple_websocket-1.1.0-py3-none-any.whl", hash = "sha256:4af6069630a38ed6c561010f0e11a5bc0d4ca569b36306eb257cd9a192497c8c", size = 13842, upload-time = "2024-10-10T22:39:29.645Z" },
+]
+
+[[package]]
 name = "sortedcontainers"
 version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -407,7 +545,10 @@ name = "where-it-went"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "eventlet" },
+    { name = "fakeredis", extra = ["lua"] },
     { name = "flask" },
+    { name = "flask-socketio" },
     { name = "pydantic" },
     { name = "redis" },
     { name = "requests" },
@@ -424,7 +565,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "eventlet", specifier = ">=0.40.3" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.32.0" },
     { name = "flask", specifier = ">=3.1.2" },
+    { name = "flask-socketio", specifier = ">=5.4.1" },
     { name = "pydantic", specifier = ">=2.11.9" },
     { name = "redis", specifier = ">=5.0.0" },
     { name = "requests", specifier = ">=2.32.5" },
@@ -437,4 +581,16 @@ dev = [
     { name = "fakeredis", specifier = ">=2.26.3" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "ruff", specifier = ">=0.13.0" },
+]
+
+[[package]]
+name = "wsproto"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c9/4a/44d3c295350d776427904d73c189e10aeae66d7f555bb2feee16d1e4ba5a/wsproto-1.2.0.tar.gz", hash = "sha256:ad565f26ecb92588a3e43bc3d96164de84cd9902482b130d0ddbaa9664a85065", size = 53425, upload-time = "2022-08-23T19:58:21.447Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/58/e860788190eba3bcce367f74d29c4675466ce8dddfba85f7827588416f01/wsproto-1.2.0-py3-none-any.whl", hash = "sha256:b9acddd652b585d75b20477888c56642fdade28bdfd3579aa24a4d2c037dd736", size = 24226, upload-time = "2022-08-23T19:58:19.96Z" },
 ]

@@ -23,7 +23,9 @@ def gmu_caching_two_requests_test() -> None:
   print(f"REQUEST 1: Potomac Heights GMU with {region1.radius}m radius")
   print("=" * 70)
 
-  request_1_places = search_engine.get_places_in_region(fake_redis, region1)
+  request_1_places = search_engine.get_places_in_region(
+    fake_redis, region1, lambda _: None
+  )
   print(f"\n[TEST] Request 1 returned {len(request_1_places)} places")
   if request_1_places:
     print("[TEST] Sample places from Request 1:")
@@ -43,7 +45,9 @@ def gmu_caching_two_requests_test() -> None:
   print(f"REQUEST 2: Liberty Square GMU with {region2.radius}m radius")
   print("=" * 70)
 
-  places2 = search_engine.get_places_in_region(fake_redis, region2)
+  places2 = search_engine.get_places_in_region(
+    fake_redis, region2, lambda _: None
+  )
   print(f"\n[TEST] Request 2 returned {len(places2)} places")
   if places2:
     print("[TEST] Sample places from Request 2:")
@@ -192,3 +196,8 @@ def print_distances_test() -> None:
   print()
 
   assert True
+
+
+if __name__ == "__main__":
+  print_distances_test()
+  gmu_caching_two_requests_test()

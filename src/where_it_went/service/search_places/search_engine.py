@@ -1,7 +1,9 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from redis import Redis
+from redis.lock import Lock
 
 from where_it_went.service.search_places import api, s2helpers
 from where_it_went.utils import listutils, pipe, result
@@ -173,7 +175,9 @@ def calc_dist_from_region_to_nearest_boundary(
 
 
 def get_places_in_region(
-  client: Redis, region: s2helpers.SearchRegion
+  client: Redis,
+  region: s2helpers.SearchRegion,
+  update_stream_callback: Callable[[list[Place]], None],
 ) -> list[Place]:
   print(
     f"\n[DEBUG] === Getting places for region at ({region.latitude:.6f}, {region.longitude:.6f}) with radius {region.radius}m ==="  # noqa: E501
@@ -201,7 +205,9 @@ def get_places_in_region(
     print("[DEBUG] Region stays within parent cell - checking 1 cell")
 
   for neighbor in neighbors if neighbors else [parent]:
-    places = get_places_in_region_loop(client, region, neighbor)
+    places = get_places_in_region_loop(
+      client, region, neighbor, update_stream_callback
+    )
     cache_places(client, neighbor, places)
     places_included.extend(places)
 
@@ -219,7 +225,10 @@ def get_places_in_region(
 
 
 def get_places_in_region_loop(
-  client: Redis, region: s2helpers.SearchRegion, cell: s2helpers.Cell
+  client: Redis,
+  region: s2helpers.SearchRegion,
+  cell: s2helpers.Cell,
+  update_stream_callback: Callable[[list[Place]], None],
 ) -> list[Place]:
   match cell.level:
     case level if level >= MAX_RECURSION_LEVEL:
@@ -231,19 +240,49 @@ def get_places_in_region_loop(
       return places
     case level:
       places: list[Place] = []
-
+      child_places_for_stream: list[Place] = []
       for child in s2helpers.get_children(cell):
         match load_places_from_cache(client, child):
           case Ok(child_places):
+            child_places_for_stream = child_places
             places.extend(child_places)
           case Err(CacheMiss()):
-            child_places = get_places_in_region_loop(client, region, child)
-            cache_places(client, child, child_places)
-            places.extend(child_places)
+            lock_name = f"lock-{child.token}"
+            try:
+              lock = Lock(client, lock_name, blocking_timeout=10)
+              with lock:
+                match load_places_from_cache(client, child):
+                  # Re-check cache after acquiring lock
+                  # someone else might have just cached it
+                  case Ok(child_places):
+                    child_places_for_stream = child_places
+                    places.extend(child_places)
+                  case _:
+                    child_places = get_places_in_region_loop(
+                      client, region, child, update_stream_callback
+                    )
+                    child_places_for_stream = child_places
+                    cache_places(client, child, child_places)
+                    places.extend(child_places)
+            except Exception as e:
+              print(f"[ERROR] Failed to acquire lock for {lock_name}: {e}")
           case Err(CorruptedValue()):
             print("[DEBUG] Value corrupted")
             pass
           case _:
             pass
+        # For every child cell we get the places and then we filter them
+        # to only include the places that are within the regio
+        filter_places_for_stream = listutils.filter(
+          lambda place: s2helpers.haversine_distance(
+            region.latitude,
+            region.longitude,
+            place.latitude,
+            place.longitude,
+          )
+          <= region.radius,
+          child_places_for_stream,
+        )
+        update_stream_callback(filter_places_for_stream)
 
       return places
