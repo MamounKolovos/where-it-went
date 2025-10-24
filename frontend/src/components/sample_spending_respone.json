@@ -1,0 +1,113 @@
+{
+"messages": [
+"For searches, time period start and end dates are currently limited to an earliest date of 2007-10-01.  For data going back to 2000-10-01, use either the Custom Award Download feature on the website or one of our download or bulk_download API endpoints as listed on https://api.usaspending.gov/docs/endpoints. "
+],
+"page_metadata": {
+"hasNext": true,
+"last_record_sort_value": "2956969.25",
+"last_record_unique_id": 93121972,
+"page": 1
+},
+"results": [
+{
+"award_amount": 58587639.0,
+"award_id": "FA875018C0129",
+"awarding_agency": "Department of Defense",
+"description": "MUDLAN ENHANCED RAPID INTEGRATION FOR TRANSITION (MERIT)",
+"end_date": "2022-08-14",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2018-08-14"
+},
+{
+"award_amount": 22228000.0,
+"award_id": "FA875018C0033",
+"awarding_agency": "Department of Defense",
+"description": "MOBILE UNMANNED/MANNED DISTRIBUTED LETHALITY AIRBORNE NETWORK (MUDLAN)",
+"end_date": "2021-03-02",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2018-03-02"
+},
+{
+"award_amount": 7427611.45,
+"award_id": "ED07CO0088",
+"awarding_agency": "Department of Education",
+"description": "NATIONAL CLEARINGHOUSE FOR HISTORY EDUCATION",
+"end_date": "2012-09-26",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2007-09-27"
+},
+{
+"award_amount": 7356637.96,
+"award_id": "HDTRA112C0039",
+"awarding_agency": "Department of Defense",
+"description": "BASE PERIOD (2 YEARS)",
+"end_date": "2017-02-28",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2012-03-01"
+},
+{
+"award_amount": 5467003.98,
+"award_id": "W9132V07C0006",
+"awarding_agency": "Department of Defense",
+"description": "TERRAIN REASONING AND ANALYSIS EFFORT",
+"end_date": "2011-01-31",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2006-12-20"
+},
+{
+"award_amount": 4746905.39,
+"award_id": "HDTRA105C0001",
+"awarding_agency": "Department of Defense",
+"description": "200509!500022!9700!HDTRA1!DEFENSE THREAT REDUCTION AGENCY !HDTRA105C0001  !A!N! !N!             !      !20041103!20051025!077817450!077817450!077817450!N!GEORGE MASON UNIVERSITY       !4400 UNIVERSITY DR        !FAIRFAX             !VA!22030!26496!600!51!FAIRFAX             !FAIRFAX (CITY)        !VIRGINIA  !+000001374679!N!N!000004092616!AD92!RDTE/OTHER DEFENSE-APPLIED RESEARCH               !S1 !SERVICES                            !000 !*                             !541330!E! !3! ! ! ! ! !20200930!B! ! !A! !D!U!S!1!001!N!1G!Z!Y!Z! !  !N!V!N! ! ! ! ! !A!A!000!A!C!N! ! ! !Y!9761!      !0001! !",
+"end_date": "2008-06-30",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2004-11-03"
+},
+{
+"award_amount": 4431183.61,
+"award_id": "HR001116C0055",
+"awarding_agency": "Department of Defense",
+"description": "IGF::OT::IGF  EXTREME DDOS DEFENSE (XD3), BASE (PHASES 1&2).  THE PURPOSE OF THE XD3 PROGRAM IS TO INVESTIGATE INNOVATIVE APPROACHES THAT ENABLE REVOLUTIONARY ADVANCES IN SCIENCE, DEVICES, OR SYSTEMS AGAINST DISTRIBUTED DENIAL OF SERVICE (DDOS) ATTACKS ON COMPUTER NETWORKS.",
+"end_date": "2020-06-30",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2016-04-12"
+},
+{
+"award_amount": 3342720.41,
+"award_id": "0001",
+"awarding_agency": "Department of Transportation",
+"description": "IGF::OT::IGF TASK ORDER 1 ENTITLED \"PROVIDE ANALYSIS AND RESEARCH SUPPORT FOR ROADSIDE SAFETY TEAM.\"",
+"end_date": "2019-05-31",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2014-06-01"
+},
+{
+"award_amount": 3050000.0,
+"award_id": "N0001409C0419",
+"awarding_agency": "Department of Defense",
+"description": "COLLEGES, UNIVERSITIES, AND PROFESSIONAL SCHOOLS",
+"end_date": "2012-02-05",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2009-02-06"
+},
+{
+"award_amount": 2956969.25,
+"award_id": "0002",
+"awarding_agency": "Department of Transportation",
+"description": "IGF::OT::IGF TASK ORDER 2 OPERATE AND MAINTAIN THE FEDERAL OUTDOOR IMPACT LABORATORY (FOIL)",
+"end_date": "2019-05-31",
+"place_of_performance_zip5": "22030",
+"recipient_name": "GEORGE MASON UNIVERSITY",
+"start_date": "2014-06-01"
+}
+]
+}
