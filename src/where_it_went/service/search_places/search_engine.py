@@ -232,12 +232,25 @@ def get_places_in_region_loop(
 ) -> list[Place]:
   match cell.level:
     case level if level >= MAX_RECURSION_LEVEL:
-      places = pipe(
-        cell,
-        fetch_places_for_cell,
-        result.unwrap_or([]),
+      fetched_places: list[Place]
+      lock_name = f"lock-{cell.token}"
+      lock = Lock(
+        client, lock_name, blocking_timeout=10, raise_on_release_error=False
       )
-      return places
+      with lock:
+        match load_places_from_cache(client, cell):
+          # Re-check cache after acquiring lock
+          # someone else might have just cached it
+          case Ok(places):
+            fetched_places = places
+          case _:
+            fetched_places = pipe(
+              cell,
+              fetch_places_for_cell,
+              result.unwrap_or([]),
+            )
+            cache_places(client, cell, fetched_places)
+      return fetched_places
     case level:
       places: list[Place] = []
       child_places_for_stream: list[Place] = []
@@ -247,32 +260,18 @@ def get_places_in_region_loop(
             child_places_for_stream = child_places
             places.extend(child_places)
           case Err(CacheMiss()):
-            lock_name = f"lock-{child.token}"
-            try:
-              lock = Lock(client, lock_name, blocking_timeout=10)
-              with lock:
-                match load_places_from_cache(client, child):
-                  # Re-check cache after acquiring lock
-                  # someone else might have just cached it
-                  case Ok(child_places):
-                    child_places_for_stream = child_places
-                    places.extend(child_places)
-                  case _:
-                    child_places = get_places_in_region_loop(
-                      client, region, child, update_stream_callback
-                    )
-                    child_places_for_stream = child_places
-                    cache_places(client, child, child_places)
-                    places.extend(child_places)
-            except Exception as e:
-              print(f"[ERROR] Failed to acquire lock for {lock_name}: {e}")
+            child_places = get_places_in_region_loop(
+              client, region, child, update_stream_callback
+            )
+            child_places_for_stream = child_places
+            places.extend(child_places)
           case Err(CorruptedValue()):
             print("[DEBUG] Value corrupted")
             pass
           case _:
             pass
         # For every child cell we get the places and then we filter them
-        # to only include the places that are within the regio
+        # to only include the places that are within the region
         filter_places_for_stream = listutils.filter(
           lambda place: s2helpers.haversine_distance(
             region.latitude,
