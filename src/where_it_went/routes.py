@@ -4,6 +4,7 @@ import flask
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel
 
+from where_it_went.service.search_places import api
 from where_it_went.service.usa_spending_service import (
   PlaceOfPerformance,
   SpendingFilters,
@@ -96,3 +97,58 @@ def search_spending_by_award() -> tuple[flask.Response, HTTPStatus]:
         return jsonify(
           {"error": f"Internal server error: {e}"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+# Just for testing the Google Places API endpoint
+
+# @bp.route(rule="/search-nearby", methods=[HTTPMethod.POST])
+# def search_nearby() -> tuple[flask.Response, HTTPStatus]:
+#   """Search for nearby places using Google Places API."""
+#   search_request_result: Result[api.SearchNearbyRequest, str] = result.do(
+#     Ok(search_request)
+#     for json in parse_post_json(request)
+#     for search_request in decode_model(api.SearchNearbyRequest, json)
+#   )
+
+#   match search_request_result:
+#     case Ok(search_request):
+#       try:
+#         # Build API request
+#         api_request = api.build_api_request(
+#           latitude=search_request.latitude,
+#           longitude=search_request.longitude,
+#           radius=search_request.radius,
+#         )
+
+#         # Send request to Google Places API
+#         response_result = api.send_request(api_request)
+#         match response_result:
+#           case Ok(response_body):
+#             # Handle the response
+#             api_response_result = api.handle_response(response_body)
+#             match api_response_result:
+#               case Ok(api_response):
+#                 # Convert API places to dict format for JSON response
+#                 places_data = [
+#                   place.model_dump() for place in api_response.places
+#                 ]
+
+#                 return jsonify(
+#                   {"places": places_data, "count": len(places_data)}
+#                 ), HTTPStatus.OK
+#               case Err(error):
+#                 return jsonify(
+#                   {"error": f"Failed to parse API response: {error}"}
+#                 ), HTTPStatus.BAD_REQUEST
+#           case Err(error):
+#             return jsonify(
+#               {"error": f"API request failed: {error}"}
+#             ), HTTPStatus.BAD_REQUEST
+
+#       except Exception as e:
+#         return jsonify(
+#           {"error": f"Internal server error: {e}"}
+#         ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+#     case Err(e):
+#       return jsonify({"error": e}), HTTPStatus.BAD_REQUEST

@@ -27,6 +27,19 @@ services:
       - "${REDIS_PORT}:${REDIS_PORT}"
     networks:
       - where-it-went-network
+    
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+    networks:
+      - where-it-went-network
+  
 
 networks:
   where-it-went-network:

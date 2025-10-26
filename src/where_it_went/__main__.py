@@ -1,5 +1,8 @@
 from where_it_went import config
-from where_it_went.app import app, socketio
+from where_it_went.app import app
+
+# TODO: Uncomment this when we have socketio tested and working
+# from where_it_went.app import socketio
 
 
 def main() -> None:

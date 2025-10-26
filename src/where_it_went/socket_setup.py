@@ -5,6 +5,7 @@ from flask_socketio import (
 )
 from redis import Redis
 
+from where_it_went.dynamodb_setup import DynamoDBSetup
 from where_it_went.service.search_places import s2helpers
 from where_it_went.service.search_places.search_engine import (
   Place,
@@ -14,12 +15,16 @@ from where_it_went.service.search_places.search_engine import (
 
 class SocketSetup(Namespace):
   redis_client: Redis
+  dynamodb_client: DynamoDBSetup
   namespace: str
 
-  def __init__(self, namespace: str, redis_client: Redis):
+  def __init__(
+    self, namespace: str, redis_client: Redis, dynamodb_client: DynamoDBSetup
+  ):
     super().__init__()
-    self.redis_client = redis_client
     self.namespace = namespace
+    self.redis_client = redis_client
+    self.dynamodb_client = dynamodb_client
 
   def on_connect(self):
     emit("connect", {"data": "Connected"})
@@ -52,7 +57,7 @@ class SocketSetup(Namespace):
 
     try:
       all_places = get_places_in_region(
-        self.redis_client, region, stream_update
+        self.redis_client, self.dynamodb_client, region, stream_update
       )
       emit("places_complete", {"total": len(all_places)})
     except Exception as e:

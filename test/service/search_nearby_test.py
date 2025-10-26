@@ -1,5 +1,6 @@
 import fakeredis
 
+from where_it_went.dynamodb_setup import DynamoDBSetup
 from where_it_went.service.search_places import s2helpers, search_engine
 
 
@@ -7,7 +8,8 @@ def gmu_caching_two_requests_test() -> None:
   """Test caching behavior with sequential requests from nearby locations"""
   # Create fake Redis client (in-memory, no Docker needed)
   fake_redis = fakeredis.FakeStrictRedis()
-
+  dynamodb_client = DynamoDBSetup(local=True)
+  _ = dynamodb_client.load_table("NearbyPlaces")
   # GMU locations
   potomac_heights = (38.826589169752516, -77.30255757609915)
   liberty_square = (38.82802502454114, -77.30240851473394)
@@ -24,7 +26,7 @@ def gmu_caching_two_requests_test() -> None:
   print("=" * 70)
 
   request_1_places = search_engine.get_places_in_region(
-    fake_redis, region1, lambda _: None
+    fake_redis, dynamodb_client, region1, lambda _: None
   )
   print(f"\n[TEST] Request 1 returned {len(request_1_places)} places")
   if request_1_places:
@@ -46,7 +48,7 @@ def gmu_caching_two_requests_test() -> None:
   print("=" * 70)
 
   places2 = search_engine.get_places_in_region(
-    fake_redis, region2, lambda _: None
+    fake_redis, dynamodb_client, region2, lambda _: None
   )
   print(f"\n[TEST] Request 2 returned {len(places2)} places")
   if places2:
@@ -196,8 +198,3 @@ def print_distances_test() -> None:
   print()
 
   assert True
-
-
-if __name__ == "__main__":
-  print_distances_test()
-  gmu_caching_two_requests_test()

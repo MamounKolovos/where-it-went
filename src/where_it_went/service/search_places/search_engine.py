@@ -5,6 +5,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from redis import Redis
 from redis.lock import Lock
 
+from where_it_went.dynamodb_setup import DynamoDBSetup
 from where_it_went.service.search_places import api, s2helpers
 from where_it_went.utils import listutils, pipe, result
 from where_it_went.utils.result import Err, Ok, Result
@@ -85,10 +86,17 @@ class CacheMiss: ...
 
 
 @dataclass(frozen=True)
+class DynamoDBMiss: ...
+
+
+@dataclass(frozen=True)
 class CorruptedValue: ...
 
 
 type CacheError = CacheMiss | CorruptedValue
+
+type DynamoDBError = DynamoDBMiss | CorruptedValue
+
 
 PLACES_ADAPTER = TypeAdapter(list[Place])
 
@@ -116,13 +124,73 @@ def load_places_from_cache(
       raise RuntimeError("Only raw bytes should be stored in the cache")
 
 
+def load_places_from_dynamodb(
+  dynamodb_client: DynamoDBSetup, cell: s2helpers.Cell
+) -> Result[list[Place], DynamoDBError]:
+  try:
+    db_entry = dynamodb_client.dynamodb_client.get_item(
+      TableName="NearbyPlaces",
+      Key={"id": {"S": cell.token}},
+    )
+    item = db_entry.get("Item")
+    if not item:
+      return Err(DynamoDBMiss())
+
+    places_attr = item.get("places")
+    if not places_attr:
+      return Err(DynamoDBMiss())
+
+    places_json_str = places_attr.get("S")
+    if not places_json_str:
+      return Err(DynamoDBMiss())
+
+    # Deserialize
+    return result.replace_error(
+      CorruptedValue(), deserialize_places(places_json_str.encode())
+    )
+  except dynamodb_client.dynamodb_client.exceptions.ResourceNotFoundException:
+    return Err(DynamoDBMiss())
+  except dynamodb_client.dynamodb_client.exceptions.ClientError:
+    return Err(DynamoDBMiss())
+
+
+def save_places_to_dynamodb(
+  dynamodb_client: DynamoDBSetup, cell: s2helpers.Cell, places: list[Place]
+) -> None:
+  _ = dynamodb_client.dynamodb_client.put_item(
+    TableName="NearbyPlaces",
+    Item={
+      "id": {"S": cell.token},
+      "places": {"S": serialize_places(places).decode()},
+    },
+  )
+
+
 def cache_places(
   client: Redis, cell: s2helpers.Cell, places: list[Place]
 ) -> None:
   _ = client.set(cell.token, serialize_places(places), ex=DEFAULT_CACHE_TTL)
 
 
-MAX_RECURSION_LEVEL = 16
+def filter_places_for_stream(
+  places: list[Place],
+  region: s2helpers.SearchRegion,
+  update_stream_callback: Callable[[list[Place]], None],
+) -> None:
+  filter_places_for_stream = listutils.filter(
+    lambda place: s2helpers.haversine_distance(
+      region.latitude,
+      region.longitude,
+      place.latitude,
+      place.longitude,
+    )
+    <= region.radius,
+    places,
+  )
+  update_stream_callback(filter_places_for_stream)
+
+
+MAX_RECURSION_LEVEL = 15
 
 
 def calc_dist_from_region_to_nearest_boundary(
@@ -176,6 +244,7 @@ def calc_dist_from_region_to_nearest_boundary(
 
 def get_places_in_region(
   client: Redis,
+  dynamodb_client: DynamoDBSetup,
   region: s2helpers.SearchRegion,
   update_stream_callback: Callable[[list[Place]], None],
 ) -> list[Place]:
@@ -187,8 +256,8 @@ def get_places_in_region(
   parent = s2helpers.get_parent(cell)
   print(f"[DEBUG] Parent cell: {parent.token} (level {parent.level})")
   # including parent cell only when the region is within the cell
-  neighbors = [cell]
-  places_included: list[Place] = []
+  neighbors = []
+  places_returned: list[Place] = []
   dist_from_point_to_cell_boundary = calc_dist_from_region_to_nearest_boundary(
     region, parent
   )
@@ -196,7 +265,7 @@ def get_places_in_region(
     f"[DEBUG] Distance to nearest boundary: {dist_from_point_to_cell_boundary:.2f}m"  # noqa: E501
   )
   if dist_from_point_to_cell_boundary <= region.radius:
-    neighbors.extend(s2helpers.get_intersecting_cells(region, cell))
+    neighbors = s2helpers.get_intersecting_cells(region, cell)
 
     print(
       f"[DEBUG] Region extends beyond cell boundary - checking {len(neighbors)} cells"  # noqa: E501
@@ -205,27 +274,26 @@ def get_places_in_region(
     print("[DEBUG] Region stays within parent cell - checking 1 cell")
 
   for neighbor in neighbors if neighbors else [parent]:
-    places = get_places_in_region_loop(
-      client, region, neighbor, update_stream_callback
+    places_returned = get_places_in_region_loop(
+      client, dynamodb_client, region, neighbor, update_stream_callback
     )
-    cache_places(client, neighbor, places)
-    places_included.extend(places)
 
   filtered_places = listutils.filter(
     lambda place: s2helpers.haversine_distance(
       region.latitude, region.longitude, place.latitude, place.longitude
     )
     <= region.radius,
-    places_included,
+    places_returned,
   )
   print(
-    f"[DEBUG] Total places found: {len(filtered_places)} (from {len(places_included)} before filtering)"  # noqa: E501
+    f"[DEBUG] Total places found: {len(filtered_places)} (from {len(places_returned)} before filtering)"  # noqa: E501
   )
   return filtered_places
 
 
 def get_places_in_region_loop(
   client: Redis,
+  dynamodb_client: DynamoDBSetup,
   region: s2helpers.SearchRegion,
   cell: s2helpers.Cell,
   update_stream_callback: Callable[[list[Place]], None],
@@ -250,38 +318,40 @@ def get_places_in_region_loop(
               result.unwrap_or([]),
             )
             cache_places(client, cell, fetched_places)
+            save_places_to_dynamodb(dynamodb_client, cell, fetched_places)
+      # For every child cell we get the places and then we filter them
+      # to only include the places that are within the region
+      filter_places_for_stream(fetched_places, region, update_stream_callback)
       return fetched_places
     case level:
-      places: list[Place] = []
-      child_places_for_stream: list[Place] = []
+      parent_places: list[Place] = []
       for child in s2helpers.get_children(cell):
         match load_places_from_cache(client, child):
           case Ok(child_places):
-            child_places_for_stream = child_places
-            places.extend(child_places)
-          case Err(CacheMiss()):
-            child_places = get_places_in_region_loop(
-              client, region, child, update_stream_callback
+            parent_places.extend(child_places)
+            filter_places_for_stream(
+              child_places, region, update_stream_callback
             )
-            child_places_for_stream = child_places
-            places.extend(child_places)
+          case Err(CacheMiss()):
+            match load_places_from_dynamodb(dynamodb_client, child):
+              case Ok(child_places):
+                # cache the child places to avoid fetching from the db again
+                cache_places(client, child, child_places)
+                parent_places.extend(child_places)
+                filter_places_for_stream(
+                  child_places, region, update_stream_callback
+                )
+              case _:
+                child_places = get_places_in_region_loop(
+                  client, dynamodb_client, region, child, update_stream_callback
+                )
+                parent_places.extend(child_places)
           case Err(CorruptedValue()):
             print("[DEBUG] Value corrupted")
             pass
           case _:
             pass
-        # For every child cell we get the places and then we filter them
-        # to only include the places that are within the region
-        filter_places_for_stream = listutils.filter(
-          lambda place: s2helpers.haversine_distance(
-            region.latitude,
-            region.longitude,
-            place.latitude,
-            place.longitude,
-          )
-          <= region.radius,
-          child_places_for_stream,
-        )
-        update_stream_callback(filter_places_for_stream)
-
-      return places
+      # Cache the parent places
+      cache_places(client, cell, parent_places)
+      save_places_to_dynamodb(dynamodb_client, cell, parent_places)
+      return parent_places
