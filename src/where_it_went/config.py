@@ -25,3 +25,11 @@ def get_places_api_key() -> Result[str, None]:
       return Err(None)
     case key:
       return Ok(key)
+
+
+def get_open_ai_api_key() -> Result[str, None]:
+  match os.getenv("OPEN_AI_API_KEY"):
+    case None:
+      return Err(None)
+    case key:
+      return Ok(key)

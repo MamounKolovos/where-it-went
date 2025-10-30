@@ -4,8 +4,8 @@ import flask
 from flask import Blueprint, jsonify, request
 from pydantic import BaseModel
 
-from where_it_went.service.search_places import api
-from where_it_went.service.usa_spending_service import (
+# from where_it_went.service.search_places import api
+from where_it_went.service.usa_spending import (
   PlaceOfPerformance,
   SpendingFilters,
   SpendingRequest,
