@@ -216,3 +216,71 @@ def group[k, v](to_key: Callable[[v], k], lst: list[v] | None = None) -> object:
       return apply
     case lst:
       return do_group(to_key, lst)
+
+
+@overload
+def argmax[a, b: int | float](func: Callable[[a], b], lst: list[a]) -> a: ...
+
+
+@overload
+def argmax[a, b: int | float](
+  func: Callable[[a], b],
+) -> Callable[[list[a]], a]: ...
+
+
+def argmax[a, b: int | float](
+  func: Callable[[a], b], lst: list[a] | None = None
+) -> object:
+  """
+  Applies the given function to every element in the list and returns
+  the element that produced the highest value
+  """
+  match lst:
+    case None:
+
+      def apply(lst: list[a]) -> a:
+        return max(lst, key=func)
+
+      return apply
+    case lst:
+      return max(lst, key=func)
+
+
+@overload
+def find[a](
+  is_desired: Callable[[a], bool], lst: list[a]
+) -> Result[a, None]: ...
+
+
+@overload
+def find[a](
+  is_desired: Callable[[a], bool],
+) -> Callable[[list[a]], Result[a, None]]: ...
+
+
+def do_find[a](
+  is_desired: Callable[[a], bool], lst: list[a]
+) -> Result[a, None]:
+  for element in lst:
+    match is_desired(element):
+      case True:
+        return Ok(element)
+      case False:
+        pass
+
+  return Err(None)
+
+
+def find[a](
+  is_desired: Callable[[a], bool], lst: list[a] | None = None
+) -> object:
+  match lst:
+    case None:
+
+      def apply(lst: list[a]) -> Result[a, None]:
+        return do_find(is_desired, lst)
+
+      return apply
+
+    case lst:
+      return do_find(is_desired, lst)

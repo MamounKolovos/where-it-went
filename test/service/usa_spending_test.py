@@ -10,7 +10,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from where_it_went.service.usa_spending_service import (
+from where_it_went.service.usa_spending import (
   Award,
   PlaceOfPerformance,
   SpendingFilters,
@@ -20,10 +20,7 @@ from where_it_went.service.usa_spending_service import (
 )
 from where_it_went.utils.result import Err, Ok
 
-# TestResults class removed - pytest handles test tracking
-
-
-# USASpendingTestSuite class removed - using pytest test functions
+# Using pytest test functions
 
 
 def place_of_performance_model_test() -> None:

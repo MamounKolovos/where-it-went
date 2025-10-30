@@ -4,11 +4,18 @@ version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "boto3>=1.40.59",
+    "boto3-stubs[dynamodb]>=1.40.59",
+    "eventlet>=0.40.3",
+    "fakeredis[lua]>=2.32.0",
     "flask>=3.1.2",
     "google-generativeai>=0.3.0",
+    "flask-socketio>=5.4.1",
+    "openai>=2.6.1",
     "pydantic>=2.11.9",
     "redis>=5.0.0",
     "requests>=2.32.5",
+    "s2cell>=1.8.0",
 ]
 
 [build-system]
@@ -32,6 +39,7 @@ ban-relative-imports = "all"
 [dependency-groups]
 dev = [
     "basedpyright>=1.31.4",
+    "fakeredis>=2.26.3",
     "pytest>=8.4.2",
     "ruff>=0.13.0",
 ]
