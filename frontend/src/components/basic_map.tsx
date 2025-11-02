@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import places from "./mockdata.json";
+import SpendingReport from "./SpendingReport";
+import spendingData from "./sample_spending_respone.json";
 
 mapboxgl.accessToken = "pk.eyJ1IjoicmFoaW1hYXRoYXI1IiwiYSI6ImNtZWU4cjZnNTBqM3IyanBsZHF5NnR6MHUifQ.P0xqeJo71exDfW0vEaq1LQ";
 
@@ -9,9 +11,18 @@ function MapComponent() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [showPrompt, setShowPrompt] = useState(true);
+  const [isReportVisible, setIsReportVisible] = useState(false);
 
-  const lat = 38.83125;  
+  const lat = 38.83125;
   const lng = -77.3143;
+
+  const handleCloseReport = () => {
+    setIsReportVisible(false);
+  };
+
+  const handleShowReport = () => {
+    setIsReportVisible(true);
+  };
 
   useEffect(() => {
     if (map.current || showPrompt) return;
@@ -24,43 +35,37 @@ function MapComponent() {
     });
 
     map.current.on("load", function () {
-     
-      let myDiv = document.createElement("div");
-      myDiv.style.width = "20px";
-      myDiv.style.height = "20px";
-      myDiv.style.background = "blue";
-      myDiv.style.borderRadius = "50%";
-
-      let myMarker = new mapboxgl.Marker(myDiv)
-        .setLngLat([lng, lat])
-        .setPopup(new mapboxgl.Popup().setHTML("<div>User Location</div>"))
-        .addTo(map.current!);
-
-      myMarker.togglePopup();
-
       let bounds = new mapboxgl.LngLatBounds();
       bounds.extend([lng, lat]);
 
-   
-      for (let i = 0; i < places.places.length; i++) {
-        let place = places.places[i];
+      places.places.forEach((place) => {
+        if (place.text === "George Mason University") {
+          let div = document.createElement("div");
+          div.style.width = "20px";
+          div.style.height = "20px";
+          div.style.background = "red";
+          div.style.borderRadius = "50%";
 
-        let div = document.createElement("div");
-        div.style.width = "20px";
-        div.style.height = "20px";
-        div.style.background = "red";
-        div.style.borderRadius = "50%";
+          const marker = new mapboxgl.Marker(div)
+            .setLngLat([place.longitude, place.latitude])
+            .addTo(map.current!);
 
-        let text = "<div><strong>" + place.text + "</strong><br>";
-        for (let j = 0; j < place.types.length; j++) {
-          text = text + place.types[j].replace(/_/g, " ") + "<br>";
+          div.addEventListener("click", handleShowReport);
+        } else {
+          let div = document.createElement("div");
+          div.style.width = "20px";
+          div.style.height = "20px";
+          div.style.background = "blue";
+          div.style.borderRadius = "50%";
+
+          new mapboxgl.Marker(div)
+            .setLngLat([place.longitude, place.latitude])
+            .setPopup(new mapboxgl.Popup().setHTML(place.text))
+            .addTo(map.current!);
         }
-        text = text + "</div>";
-
-        new mapboxgl.Marker(div).setLngLat([place.longitude, place.latitude]).setPopup(new mapboxgl.Popup().setHTML(text)).addTo(map.current!);
 
         bounds.extend([place.longitude, place.latitude]);
-      }
+      });
 
       map.current!.fitBounds(bounds, { padding: 50 });
     });
@@ -69,7 +74,16 @@ function MapComponent() {
   return (
     <div>
       {showPrompt && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "white" }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "white",
+          }}
+        >
           <div>
             <p>Share your location to see nearby places</p>
             <button onClick={() => setShowPrompt(false)}>Allow Access</button>
@@ -77,7 +91,13 @@ function MapComponent() {
           </div>
         </div>
       )}
-      <div ref={mapContainer} style={{ width: "100%", height: "500px" }}></div>
+      <div
+        ref={mapContainer}
+        style={{ width: "100%", height: "500px" }}
+      ></div>
+      {isReportVisible && (
+        <SpendingReport data={spendingData} onClose={handleCloseReport} />
+      )}
     </div>
   );
 }
