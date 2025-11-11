@@ -1,14 +1,17 @@
 from http import HTTPMethod, HTTPStatus
+from typing import Any
 
 import flask
 from flask import Blueprint, jsonify, request
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
-# from where_it_went.service.search_places import api
+from where_it_went.service.report_service import ReportService
 from where_it_went.service.usa_spending import (
+  Award,
   PlaceOfPerformance,
   SpendingFilters,
   SpendingRequest,
+  SpendingResponse,
   USASpendingClient,
   USASpendingError,
 )
@@ -18,6 +21,8 @@ from where_it_went.utils.http import parse_get_json, parse_post_json
 from where_it_went.utils.result import Err, Ok, Result
 
 bp = Blueprint("routes", __name__)
+
+report_service: ReportService | None = None
 
 
 class AddRequest(BaseModel):
@@ -97,6 +102,112 @@ def search_spending_by_award() -> tuple[flask.Response, HTTPStatus]:
         return jsonify(
           {"error": f"Internal server error: {e}"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+# Generate Summary Endpoint
+@bp.route("/api/generate-summary", methods=[HTTPMethod.POST])
+def generate_summary() -> tuple[flask.Response, HTTPStatus]:
+  try:
+    raw_data = request.get_json()
+
+    if not raw_data.get("data"):
+      return jsonify({"error": "No data provided"}), HTTPStatus.BAD_REQUEST
+
+    # Preprocess raw data to match SpendingResponse schema
+    transformed_data: dict[str, Any] = {
+      "results": [
+        {
+          "Award ID": award.get("award_id"),
+          "Recipient Name": award.get("recipient_name"),
+          "Award Amount": award.get("award_amount"),
+          "Awarding Agency": award.get("awarding_agency"),
+          "Start Date": award.get("start_date"),
+          "End Date": award.get("end_date"),
+          "Place of Performance Zip5": award.get("place_of_performance_zip5"),
+          "Description": award.get("description"),
+        }
+        for award in raw_data.get("data", [])
+      ],
+      "page_metadata": {},
+    }
+
+    if report_service is None:
+      return jsonify(
+        {"summary": "AI service not available"}
+      ), HTTPStatus.SERVICE_UNAVAILABLE
+
+    spending_response = SpendingResponse(**transformed_data)
+    summary_result = report_service.generate_summary(spending_response)
+
+    match summary_result:
+      case Ok(summary_text):
+        return jsonify({"summary": summary_text}), HTTPStatus.OK
+      case Err(error):
+        return jsonify(
+          {"summary": f"Unable to generate summary: {error}"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+  except ValidationError:
+    return jsonify({"error": "Invalid input data"}), HTTPStatus.BAD_REQUEST
+  except Exception:
+    return jsonify(
+      {"error": "Internal server error"}
+    ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+# Chart Data Processing Endpoint
+@bp.route("/api/process-chart-data", methods=[HTTPMethod.POST])
+def process_chart_data() -> tuple[flask.Response, HTTPStatus]:
+  try:
+    data = request.get_json()
+    awards_data = data.get("data", [])
+    feature = data.get("feature", "award_amount")
+
+    if not awards_data:
+      return jsonify({"error": "No data provided"}), HTTPStatus.BAD_REQUEST
+
+    if report_service is None:
+      return jsonify(
+        {"error": "AI service not available"}
+      ), HTTPStatus.SERVICE_UNAVAILABLE
+
+    awards = [Award(**award) for award in awards_data]
+    processed_data = report_service.process_chart_data(awards, feature)
+
+    return jsonify(processed_data), HTTPStatus.OK
+
+  except Exception as e:
+    return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+# Table Data Processing Endpoint
+@bp.route("/api/process-table-data", methods=[HTTPMethod.POST])
+def process_table_data() -> tuple[flask.Response, HTTPStatus]:
+  try:
+    data = request.get_json()
+    awards_data = data.get("data", [])
+
+    if not awards_data:
+      return jsonify({"error": "No data provided"}), HTTPStatus.BAD_REQUEST
+
+    formatted_data: list[dict[str, Any]] = []
+    for award_data in awards_data:
+      formatted_award = {
+        "award_id": award_data.get("award_id", "N/A"),
+        "award_amount_formatted": f"${award_data.get('award_amount', 0):,.2f}",
+        "award_amount": award_data.get("award_amount"),
+        "awarding_agency": award_data.get("awarding_agency", "N/A"),
+        "recipient_name": award_data.get("recipient_name", "N/A"),
+        "description": award_data.get("description", "N/A"),
+        "start_date": award_data.get("start_date", "N/A"),
+        "end_date": award_data.get("end_date", "N/A"),
+      }
+      formatted_data.append(formatted_award)
+
+    return jsonify({"data": formatted_data}), HTTPStatus.OK
+
+  except Exception as e:
+    return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 # Just for testing the Google Places API endpoint
