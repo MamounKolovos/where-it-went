@@ -12,7 +12,7 @@ from where_it_went.socket_setup import SocketSetup
 
 @pytest.mark.skipif(
   "dynamodb-local" in os.getenv("DYNAMODB_ENDPOINT", ""),
-  reason="DynamoDB Local (Docker) not available - requires Docker to be running",
+  reason=("DynamoDB Local (Docker) not available - requires Docker running"),
 )
 def gmu_caching_two_requests_test() -> None:
   """Test caching behavior with sequential requests from nearby locations"""
