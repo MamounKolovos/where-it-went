@@ -27,4 +27,4 @@ ENV PYTHONUNBUFFERED=1
 
 USER appuser
 
-CMD ["flask", "run"]
+CMD ["where-it-went"]

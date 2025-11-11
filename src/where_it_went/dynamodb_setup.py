@@ -1,6 +1,11 @@
+from http import HTTPStatus
+
 import boto3
 from mypy_boto3_dynamodb.client import DynamoDBClient
 from mypy_boto3_dynamodb.waiter import TableExistsWaiter
+
+from where_it_went.config import get_dynamodb_endpoint
+from where_it_went.utils import pipe, result
 
 
 class DynamoDBSetup:
@@ -10,10 +15,22 @@ class DynamoDBSetup:
 
   def __init__(self, profile_name: str | None = None, local: bool = False):
     if local:
+      endpoint_url = pipe(
+        get_dynamodb_endpoint(),
+        result.replace_error(
+          (
+            "Failed to get DynamoDB endpoint",
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+          )
+        ),
+        result.unwrap(),
+      )
       self.dynamodb_client = boto3.client(  # pyright: ignore[reportUnknownMemberType]
         "dynamodb",
         region_name="us-east-1",
-        endpoint_url="http://localhost:8000",
+        endpoint_url=endpoint_url,
+        aws_access_key_id="dummy",  # DynamoDB Local doesn't validate
+        aws_secret_access_key="dummy",
       )
     else:
       # This would be for Production AWS DynamoDB

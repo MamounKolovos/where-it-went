@@ -83,7 +83,7 @@ def new_search_region(
   return SearchRegion(
     latitude=clamp(latitude, -90.0, 90.0),
     longitude=clamp(longitude, -180.0, 180),
-    radius=clamp(radius, 0.0, 1000.0),
+    radius=clamp(radius, 10.0, 50000.0),  # 10m to 50km to match frontend
   )
 
 

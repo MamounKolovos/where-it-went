@@ -33,3 +33,11 @@ def get_open_ai_api_key() -> Result[str, None]:
       return Err(None)
     case key:
       return Ok(key)
+
+
+def get_dynamodb_endpoint() -> Result[str, None]:
+  match os.getenv("DYNAMODB_ENDPOINT"):
+    case None:
+      return Err(None)
+    case endpoint:
+      return Ok(endpoint)

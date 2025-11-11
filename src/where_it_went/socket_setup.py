@@ -21,16 +21,18 @@ class SocketSetup(Namespace):
   def __init__(
     self, namespace: str, redis_client: Redis, dynamodb_client: DynamoDBSetup
   ):
-    super().__init__()
+    super().__init__(namespace)
     self.namespace = namespace
     self.redis_client = redis_client
     self.dynamodb_client = dynamodb_client
 
   def on_connect(self):
-    emit("connect", {"data": "Connected"})
+    print(f"[SocketSetup] Client connected to namespace {self.namespace}")
+    # Don't emit 'connect' - it's a reserved Socket.IO event
 
   def on_disconnect(self):
-    emit("disconnect", {"data": "Disconnected"})
+    print(f"[SocketSetup] Client disconnected from namespace {self.namespace}")
+    # Don't emit 'disconnect' - it's a reserved Socket.IO event
 
   def on_location_update(self, data: dict[str, float]):
     """

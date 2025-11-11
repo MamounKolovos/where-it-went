@@ -1,4 +1,7 @@
+import os
+
 import fakeredis
+import pytest
 from flask_socketio import SocketIOTestClient
 
 from where_it_went.app import app, socketio
@@ -7,6 +10,10 @@ from where_it_went.service.search_places import s2helpers, search_engine
 from where_it_went.socket_setup import SocketSetup
 
 
+@pytest.mark.skipif(
+  "dynamodb-local" in os.getenv("DYNAMODB_ENDPOINT", ""),
+  reason=("DynamoDB Local (Docker) not available - requires Docker running"),
+)
 def gmu_caching_two_requests_test() -> None:
   """Test caching behavior with sequential requests from nearby locations"""
   # Create fake Redis client (in-memory, no Docker needed)
@@ -40,7 +47,7 @@ def gmu_caching_two_requests_test() -> None:
   print(f"REQUEST 1: Potomac Heights GMU with {region1.radius}m radius")
   print("=" * 70)
 
-  _ = test_socket_client.emit(
+  _ = test_socket_client.emit(  # pyright: ignore[reportUnknownMemberType]
     "location_update",
     {
       "latitude": float(region1.latitude),
