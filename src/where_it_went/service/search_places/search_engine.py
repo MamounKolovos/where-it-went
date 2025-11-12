@@ -31,7 +31,7 @@ def decode_place(api_place: api.ApiPlace) -> Result[Place, str]:
       f"Api could not find the state that {api_place.display_name.name} is in"
     ),
     result.unwrap(),
-    lambda component: component.long_text,
+    lambda component: component.short_text,
   )
 
   zip_code = pipe(

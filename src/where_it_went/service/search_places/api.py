@@ -70,6 +70,7 @@ class Location(BaseModel):
 
 class AddressComponent(BaseModel):
   long_text: str = Field(..., alias="longText")
+  short_text: str = Field(..., alias="shortText")
   types: list[str] = Field(default_factory=list)
 
 

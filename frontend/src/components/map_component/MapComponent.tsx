@@ -254,7 +254,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       // Clear any existing timeout
       clearTimeout(debounceTimeout);
       
-      // Wait 500ms after movement stops before fetching
+      // Wait 1 second after movement stops before fetching
       debounceTimeout = setTimeout(() => {
         const center = map.current!.getCenter();
         const zoom = map.current!.getZoom();
@@ -264,7 +264,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
         
         // Update user location marker to new center and fetch with calculated radius
         fetchPlaces(center.lat, center.lng, radius);
-      }, 500);
+      }, 1000);
     };
 
     map.current.on('moveend', handleMoveEnd);

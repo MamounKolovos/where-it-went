@@ -28,6 +28,8 @@ redis_client = Redis(connection_pool=pool)
 
 # DynamoDB setup
 dynamodb_setup = DynamoDBSetup(local=True)
+# Ensure the NearbyPlaces table exists
+_ = dynamodb_setup.load_table("NearbyPlaces")
 
 socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
 socketio.on_namespace(SocketSetup("/dev", redis_client, dynamodb_setup))
