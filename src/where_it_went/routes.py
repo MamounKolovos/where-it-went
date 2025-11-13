@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from pydantic import BaseModel, ValidationError
 
 from where_it_went.service.report_service import ReportService
+from where_it_went.service.search_places import api
 from where_it_went.service.usa_spending import (
   Award,
   PlaceOfPerformance,
@@ -208,6 +209,58 @@ def process_table_data() -> tuple[flask.Response, HTTPStatus]:
 
   except Exception as e:
     return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+# Text Search Endpoint
+@bp.route("/api/text-search", methods=[HTTPMethod.POST])
+def text_search() -> tuple[flask.Response, HTTPStatus]:
+  """Search for places using Google Text Search API."""
+  search_request_result: Result[api.TextSearchRequest, str] = result.do(
+    Ok(search_request)
+    for json in parse_post_json(request)
+    for search_request in decode_model(api.TextSearchRequest, json)
+  )
+
+  match search_request_result:
+    case Ok(search_request):
+      try:
+        # Build API request
+        api_request = api.build_text_search_api_request(
+          text_query=search_request.text_query
+        )
+
+        # Send request to Google Places API
+        response_result = api.send_text_search_request(api_request)
+        match response_result:
+          case Ok(response_body):
+            # Handle the response
+            api_response_result = api.handle_text_search_response(response_body)
+            match api_response_result:
+              case Ok(api_response):
+                # Convert API places to dict format for JSON response
+                places_data = [
+                  place.model_dump() for place in api_response.places
+                ]
+
+                return jsonify(
+                  {"places": places_data, "count": len(places_data)}
+                ), HTTPStatus.OK
+              case Err(error):
+                return jsonify(
+                  {"error": f"Failed to parse API response: {error}"}
+                ), HTTPStatus.BAD_REQUEST
+          case Err(error):
+            return jsonify(
+              {"error": f"API request failed: {error}"}
+            ), HTTPStatus.BAD_REQUEST
+
+      except Exception as e:
+        return jsonify(
+          {"error": f"Internal server error: {e}"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    case Err(e):
+      return jsonify({"error": e}), HTTPStatus.BAD_REQUEST
 
 
 # Just for testing the Google Places API endpoint

@@ -12,6 +12,7 @@ from where_it_went.utils.result import Ok, Result
 
 API_URL = "https://places.googleapis.com/v1"
 SEARCH_NEARBY_ENDPOINT = "/places:searchNearby"
+TEXT_SEARCH_ENDPOINT = "/places:searchText"
 
 # Exclude types NOT relevant for federal spending
 EXCLUDED_PLACE_TYPES = [
@@ -195,6 +196,92 @@ def handle_response(
 ) -> Result[NearbySearchPlacesApiResponse, str]:
   return pipe(
     decode_model(NearbySearchPlacesApiResponse, response_body),
+    result.unwrap(),
+    Ok,
+  )
+
+
+# ============= TEXT SEARCH API =============
+
+
+class TextSearchRequest(BaseModel):
+  text_query: str
+
+
+class TextSearchApiRequest(BaseModel):
+  text_query: str = Field(..., alias="textQuery")
+  language_code: str = Field(default="en", alias="languageCode")
+  region_code: str = Field(default="US", alias="regionCode")
+  max_result_count: int = Field(default=10, alias="maxResultCount")
+
+
+class TextSearchApiResponse(BaseModel):
+  places: list[ApiPlace] = []
+
+
+def build_text_search_api_request(text_query: str) -> TextSearchApiRequest:
+  request_dict: dict[str, Any] = {
+    "textQuery": text_query,
+    "languageCode": "en",
+    "regionCode": "US",
+    "maxResultCount": 10,
+  }
+  return TextSearchApiRequest(**request_dict)
+
+
+@result.with_unwrap
+def send_text_search_request(
+  api_request_model: TextSearchApiRequest,
+) -> Result[dict[str, Any], str]:
+  places_api_key = pipe(
+    config.get_places_api_key(),
+    result.replace_error(
+      (
+        "Request does not have necessary authorization credentials, "
+        + "must provide Places API Key",
+        HTTPStatus.UNAUTHORIZED,
+      )
+    ),
+    result.unwrap(),
+  )
+
+  # Text Search requires specific field mask
+  text_search_session = requests.Session()
+  text_search_session.headers.update(
+    {
+      "Content-Type": "application/json",
+      "X-Goog-FieldMask": str.join(
+        ",",
+        [
+          "places.displayName",
+          "places.location",
+          "places.types",
+          "places.formattedAddress",
+          "places.addressComponents",
+        ],
+      ),
+    }
+  )
+
+  text_search_response = text_search_session.post(
+    API_URL + TEXT_SEARCH_ENDPOINT,
+    json=api_request_model.model_dump(by_alias=True),
+    headers={"X-Goog-Api-Key": places_api_key},
+  )
+
+  return pipe(
+    text_search_response,
+    parse_response_json,
+    result.unwrap(),
+  )
+
+
+@result.with_unwrap
+def handle_text_search_response(
+  response_body: dict[str, Any],
+) -> Result[TextSearchApiResponse, str]:
+  return pipe(
+    decode_model(TextSearchApiResponse, response_body),
     result.unwrap(),
     Ok,
   )
