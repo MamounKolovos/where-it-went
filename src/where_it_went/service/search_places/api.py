@@ -13,6 +13,53 @@ from where_it_went.utils.result import Ok, Result
 API_URL = "https://places.googleapis.com/v1"
 SEARCH_NEARBY_ENDPOINT = "/places:searchNearby"
 
+# Exclude types NOT relevant for federal spending
+EXCLUDED_PLACE_TYPES = [
+  # Automotive
+  "car_dealer",
+  "car_rental",
+  "car_repair",
+  "car_wash",
+  "electric_vehicle_charging_station",
+  "gas_station",
+  "parking",
+  "rest_stop",
+  # Food and Drink (all restaurants/bars/cafes)
+  "restaurant",
+  "bar",
+  "cafe",
+  "bakery",
+  "fast_food_restaurant",
+  "coffee_shop",
+  # Lodging
+  "hotel",
+  "motel",
+  "lodging",
+  # Shopping (retail stores)
+  "clothing_store",
+  "shoe_store",
+  "store",
+  "supermarket",
+  "grocery_store",
+  "shopping_mall",
+  # Sports/Recreation
+  "gym",
+  "fitness_center",
+  "sports_club",
+  # Personal Services
+  "barber_shop",
+  "beauty_salon",
+  "hair_salon",
+  "nail_salon",
+  "spa",
+  "laundry",
+  # Places of Worship
+  "church",
+  "mosque",
+  "synagogue",
+  "hindu_temple",
+]
+
 places_session = requests.Session()
 places_session.headers.update(
   {
@@ -56,6 +103,8 @@ class NearbySearchPlacesApiRequest(BaseModel):
     ..., alias="locationRestriction"
   )
   max_result_count: int = Field(..., alias="maxResultCount")
+  included_types: list[str] = Field(default_factory=list, alias="includedTypes")
+  excluded_types: list[str] = Field(default_factory=list, alias="excludedTypes")
 
 
 class DisplayName(BaseModel):
@@ -106,6 +155,7 @@ def build_api_request(
       }
     },
     "maxResultCount": 20,
+    "excludedTypes": EXCLUDED_PLACE_TYPES,
   }
   return NearbySearchPlacesApiRequest(**request_dict)
 

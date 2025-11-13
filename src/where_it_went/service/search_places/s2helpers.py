@@ -6,9 +6,14 @@ import s2cell  # pyright: ignore[reportMissingTypeStubs]
 from where_it_went.utils import listutils, pipe
 
 MAX_S2_LEVEL = 24
-MIN_S2_LEVEL = 10
+MIN_S2_LEVEL = 5
 
 LEVEL_TO_DIAMETER: dict[int, float] = {
+  5: 312512.0,  # ~156km radius - multiple states/provinces
+  6: 156256.0,  # ~78km radius - large metropolitan regions
+  7: 78128.0,  # ~39km radius - metro areas
+  8: 39064.0,  # ~19.5km radius - cities
+  9: 19532.0,  # ~9.8km radius - large neighborhoods
   10: 9766.0,
   11: 4883.0,
   12: 2441.0,
@@ -83,7 +88,7 @@ def new_search_region(
   return SearchRegion(
     latitude=clamp(latitude, -90.0, 90.0),
     longitude=clamp(longitude, -180.0, 180),
-    radius=clamp(radius, 10.0, 50000.0),  # 10m to 50km to match frontend
+    radius=clamp(radius, 10.0, 156000.0),  # 10m to 156km to match frontend
   )
 
 

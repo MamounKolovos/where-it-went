@@ -24,7 +24,7 @@ const DEFAULT_RADIUS = 500; // meters
 const calculateRadiusFromZoom = (zoom: number): number => {
   const baseRadius = 610; // S2 Level 13 radius
   const radius = Math.round(baseRadius * Math.pow(2, 13 - zoom));
-  return Math.min(Math.max(radius, 10), 50000); // Clamp between 10m and 50km
+  return Math.min(Math.max(radius, 10), 156000); // Clamp between 10m and 156km - supports S2 level 5
 };
 
 interface MapComponentProps {
@@ -44,6 +44,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
   const [exploreMode, setExploreMode] = useState(!startWithTracking); // If tracking allowed, start in Live Tracking mode
   const [spendingData, setSpendingData] = useState<SpendingData | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const requestIdRef = useRef<number>(0); // Track request ID to ignore old updates
 
   const clearMarkers = useCallback(() => {
     markers.current.forEach((marker) => marker.remove());
@@ -140,6 +141,10 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
 
   const fetchPlaces = useCallback(
     (latitude: number, longitude: number, customRadius?: number) => {
+      // Increment request ID to track this new request
+      requestIdRef.current += 1;
+      const currentRequestId = requestIdRef.current;
+      
       setIsLoading(true);
       setError(null);
       setPlaces([]);
@@ -179,18 +184,31 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       socketService.connect();
 
       socketService.onPlacesUpdate((data) => {
-        console.log('[Map] Received places update:', data.places.length);
-        setPlaces((prev) => {
-          const newPlaces = [...prev, ...data.places];
-          
-          // Add new markers
-          data.places.forEach((place) => addMarkerToMap(place));
-          
-          return newPlaces;
+        // Ignore updates from old requests
+        if (requestIdRef.current !== currentRequestId) {
+          console.log(`[Map] Ignoring update from old request (current: ${requestIdRef.current}, received: ${currentRequestId})`);
+          return;
+        }
+        
+        console.log(`[Map] STREAMING: Received ${data.places.length} places (request ${currentRequestId})`);
+        
+        // Add markers immediately for visual feedback
+        data.places.forEach((place) => {
+          console.log(`[Map] Adding marker for: ${place.name}`);
+          addMarkerToMap(place);
         });
+        
+        // Update state
+        setPlaces((prev) => [...prev, ...data.places]);
       });
 
       socketService.onPlacesComplete((data) => {
+        // Ignore completion from old requests
+        if (requestIdRef.current !== currentRequestId) {
+          console.log('[Map] Ignoring completion from old request');
+          return;
+        }
+        
         console.log('[Map] Places streaming complete. Total:', data.total);
         setIsLoading(false);
       });

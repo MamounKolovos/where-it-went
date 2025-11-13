@@ -157,13 +157,25 @@ def load_places_from_dynamodb(
 def save_places_to_dynamodb(
   dynamodb_client: DynamoDBSetup, cell: s2helpers.Cell, places: list[Place]
 ) -> None:
-  _ = dynamodb_client.dynamodb_client.put_item(
-    TableName="NearbyPlaces",
-    Item={
-      "id": {"S": cell.token},
-      "places": {"S": serialize_places(places).decode()},
-    },
-  )
+  try:
+    _ = dynamodb_client.dynamodb_client.put_item(
+      TableName="NearbyPlaces",
+      Item={
+        "id": {"S": cell.token},
+        "places": {"S": serialize_places(places).decode()},
+      },
+    )
+  except dynamodb_client.dynamodb_client.exceptions.ResourceNotFoundException:
+    # If the table doesn't exist, create it and retry
+    print("[DEBUG] NearbyPlaces table not found, creating it...")
+    _ = dynamodb_client.load_table("NearbyPlaces")
+    _ = dynamodb_client.dynamodb_client.put_item(
+      TableName="NearbyPlaces",
+      Item={
+        "id": {"S": cell.token},
+        "places": {"S": serialize_places(places).decode()},
+      },
+    )
 
 
 def cache_places(
@@ -177,7 +189,7 @@ def filter_places_for_stream(
   region: s2helpers.SearchRegion,
   update_stream_callback: Callable[[list[Place]], None],
 ) -> None:
-  filter_places_for_stream = listutils.filter(
+  filtered_places = listutils.filter(
     lambda place: s2helpers.haversine_distance(
       region.latitude,
       region.longitude,
@@ -187,7 +199,10 @@ def filter_places_for_stream(
     <= region.radius,
     places,
   )
-  update_stream_callback(filter_places_for_stream)
+  # Only send updates if there are places to stream
+  if filtered_places:
+    print(f"[DEBUG] Streaming {len(filtered_places)} places to frontend")
+    update_stream_callback(filtered_places)
 
 
 MAX_RECURSION_LEVEL = 15
@@ -247,6 +262,7 @@ def get_places_in_region(
   dynamodb_client: DynamoDBSetup,
   region: s2helpers.SearchRegion,
   update_stream_callback: Callable[[list[Place]], None],
+  should_cancel: Callable[[], bool] | None = None,
 ) -> list[Place]:
   print(
     f"\n[DEBUG] === Getting places for region at ({region.latitude:.6f}, {region.longitude:.6f}) with radius {region.radius}m ==="  # noqa: E501
@@ -275,7 +291,12 @@ def get_places_in_region(
 
   for neighbor in neighbors if neighbors else [parent]:
     places_returned = get_places_in_region_loop(
-      client, dynamodb_client, region, neighbor, update_stream_callback
+      client,
+      dynamodb_client,
+      region,
+      neighbor,
+      update_stream_callback,
+      should_cancel,
     )
 
   filtered_places = listutils.filter(
@@ -297,37 +318,55 @@ def get_places_in_region_loop(
   region: s2helpers.SearchRegion,
   cell: s2helpers.Cell,
   update_stream_callback: Callable[[list[Place]], None],
+  should_cancel: Callable[[], bool] | None = None,
 ) -> list[Place]:
+  # Check if request was cancelled
+  if should_cancel and should_cancel():
+    print("[DEBUG] Request cancelled")
+    return []
+
   match cell.level:
     case level if level >= MAX_RECURSION_LEVEL:
       fetched_places: list[Place]
       lock_name = f"lock-{cell.token}"
       lock = Lock(
-        client, lock_name, blocking_timeout=10, raise_on_release_error=False
+        client, lock_name, blocking_timeout=60, raise_on_release_error=False
       )
-      with lock:
-        match load_places_from_cache(client, cell):
-          # Re-check cache after acquiring lock
-          # someone else might have just cached it
-          case Ok(places):
-            fetched_places = places
-          case _:
-            fetched_places = pipe(
-              cell,
-              fetch_places_for_cell,
-              result.unwrap_or([]),
-            )
-            cache_places(client, cell, fetched_places)
-            save_places_to_dynamodb(dynamodb_client, cell, fetched_places)
-      # For every child cell we get the places and then we filter them
-      # to only include the places that are within the region
-      filter_places_for_stream(fetched_places, region, update_stream_callback)
-      return fetched_places
+      try:
+        with lock:
+          match load_places_from_cache(client, cell):
+            # Re-check cache after acquiring lock
+            # someone else might have just cached it
+            case Ok(places):
+              fetched_places = places
+            case _:
+              fetched_places = pipe(
+                cell,
+                fetch_places_for_cell,
+                result.unwrap_or([]),
+              )
+              # Only cache non-empty results
+              if fetched_places:
+                cache_places(client, cell, fetched_places)
+                save_places_to_dynamodb(dynamodb_client, cell, fetched_places)
+        # For every child cell we get the places and then we filter them
+        # to only include the places that are within the region
+        filter_places_for_stream(fetched_places, region, update_stream_callback)
+        return fetched_places
+      except Exception as e:
+        # If lock times out or other error, skip this cell gracefully
+        print(f"[DEBUG] Error acquiring lock for cell {cell.token}: {e}")
+        return []
     case level:
       parent_places: list[Place] = []
       for child in s2helpers.get_children(cell):
+        if should_cancel and should_cancel():
+          print("[DEBUG] Request cancelled")
+          return []
         match load_places_from_cache(client, child):
           case Ok(child_places):
+            count = len(child_places)
+            print(f"[DEBUG] Loaded {count} from cache for child {child.token}")
             parent_places.extend(child_places)
             filter_places_for_stream(
               child_places, region, update_stream_callback
@@ -343,7 +382,12 @@ def get_places_in_region_loop(
                 )
               case _:
                 child_places = get_places_in_region_loop(
-                  client, dynamodb_client, region, child, update_stream_callback
+                  client,
+                  dynamodb_client,
+                  region,
+                  child,
+                  update_stream_callback,
+                  should_cancel,
                 )
                 parent_places.extend(child_places)
           case Err(CorruptedValue()):
@@ -351,7 +395,8 @@ def get_places_in_region_loop(
             pass
           case _:
             pass
-      # Cache the parent places
-      cache_places(client, cell, parent_places)
-      save_places_to_dynamodb(dynamodb_client, cell, parent_places)
+      # Cache the parent places (only if non-empty)
+      if parent_places:
+        cache_places(client, cell, parent_places)
+        save_places_to_dynamodb(dynamodb_client, cell, parent_places)
       return parent_places

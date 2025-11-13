@@ -31,5 +31,11 @@ dynamodb_setup = DynamoDBSetup(local=True)
 # Ensure the NearbyPlaces table exists
 _ = dynamodb_setup.load_table("NearbyPlaces")
 
-socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
+socketio = SocketIO(
+  app,
+  async_mode="eventlet",
+  cors_allowed_origins="*",
+  ping_timeout=120,  # 2 minutes for large radius searches
+  ping_interval=25,  # Send ping every 25 seconds
+)
 socketio.on_namespace(SocketSetup("/dev", redis_client, dynamodb_setup))

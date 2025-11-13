@@ -25,6 +25,7 @@ class SocketService {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: this.maxReconnectAttempts,
+      timeout: 120000, // 2 minutes for large radius searches
     });
 
     this.socket.on('connect', () => {
