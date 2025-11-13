@@ -9,6 +9,7 @@ import { SpendingReport } from '@components/spending_report_component';
 import ErrorBanner from '@components/map_component/ErrorBanner';
 import LoadingIndicator from '@components/map_component/LoadingIndicator';
 import MapControls from '@components/map_component/MapControls';
+import SearchBar from '@components/map_component/SearchBar';
 import './MapComponent.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -45,10 +46,24 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
   const [spendingData, setSpendingData] = useState<SpendingData | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const requestIdRef = useRef<number>(0); // Track request ID to ignore old updates
+  const lastFetchPosition = useRef<{ lat: number; lng: number } | null>(null); // Last position where we fetched data
+  const zoomDebounceRef = useRef<NodeJS.Timeout | null>(null); // Debounce timer for zoom changes
 
   const clearMarkers = useCallback(() => {
     markers.current.forEach((marker) => marker.remove());
     markers.current = [];
+  }, []);
+
+  // Calculate distance between two points in meters (Haversine formula)
+  const getDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371000; // Earth radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   }, []);
 
   const fetchSpendingData = useCallback(async (place: Place) => {
@@ -138,6 +153,29 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       duration: 1000
     });
   }, [userLocation]);
+
+  const moveToLocation = useCallback((lat: number, lng: number) => {
+    if (!map.current) return;
+
+    // If in Live Tracking mode, switch to Explore Mode
+    // so user can stay at the searched location
+    if (!exploreMode) {
+      setExploreMode(true);
+    }
+
+    // Fly to the new location with smooth animation
+    map.current.flyTo({
+      center: [lng, lat],
+      zoom: 14,
+      duration: 1500
+    });
+
+    // Explore mode will automatically fetch places after the fly animation
+  }, [exploreMode]);
+
+  const handleSearchSpendingReport = useCallback((place: Place) => {
+    fetchSpendingData(place);
+  }, [fetchSpendingData]);
 
   const fetchPlaces = useCallback(
     (latitude: number, longitude: number, customRadius?: number) => {
@@ -270,6 +308,15 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
   useEffect(() => {
     if (!map.current || !exploreMode) return;
 
+    console.log('[Map] Switching to Explore Mode');
+
+    // Immediately fetch places at current map center when switching to Explore Mode
+    const center = map.current.getCenter();
+    const zoom = map.current.getZoom();
+    const radius = calculateRadiusFromZoom(zoom);
+    console.log(`[Explore Mode] Initial fetch at (${center.lat.toFixed(6)}, ${center.lng.toFixed(6)})`);
+    fetchPlaces(center.lat, center.lng, radius);
+
     let debounceTimeout: NodeJS.Timeout;
 
     const handleMoveEnd = () => {
@@ -302,20 +349,50 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     if (exploreMode || !navigator.geolocation) return;
 
     console.log('[Map] Switching to Live Tracking mode');
+    lastFetchPosition.current = null; // Reset on mode switch
     
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         console.log(`[Live Tracking] Position update: ${latitude}, ${longitude}`);
         
-        // Calculate radius based on current zoom level
+        // Always smoothly pan camera to follow user
         if (map.current) {
+          map.current.panTo([longitude, latitude], {
+            duration: 500  // Smooth 0.5s pan animation
+          });
+        }
+
+        // Calculate if we should fetch new data
+        let shouldFetch = false;
+        
+        if (!lastFetchPosition.current) {
+          // First position - always fetch
+          shouldFetch = true;
+          console.log('[Live Tracking] First position - fetching data');
+        } else {
+          // Check if moved significantly (>20m)
+          const distance = getDistance(
+            lastFetchPosition.current.lat,
+            lastFetchPosition.current.lng,
+            latitude,
+            longitude
+          );
+          
+          if (distance > 20) {
+            shouldFetch = true;
+            console.log(`[Live Tracking] Moved ${distance.toFixed(1)}m - fetching new data`);
+          } else {
+            console.log(`[Live Tracking] Moved only ${distance.toFixed(1)}m - skipping fetch`);
+          }
+        }
+        
+        // Fetch places if moved significantly
+        if (shouldFetch && map.current) {
           const zoom = map.current.getZoom();
           const radius = calculateRadiusFromZoom(zoom);
-          console.log(`[Live Tracking] Using radius ${radius}m (zoom ${zoom.toFixed(1)})`);
           fetchPlaces(latitude, longitude, radius);
-        } else {
-          fetchPlaces(latitude, longitude);
+          lastFetchPosition.current = { lat: latitude, lng: longitude };
         }
       },
       (error) => {
@@ -330,11 +407,42 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       }
     );
 
+    // Handle zoom changes with debouncing
+    const handleZoomEnd = () => {
+      if (!map.current || !lastFetchPosition.current) return;
+      
+      // Clear existing timer
+      if (zoomDebounceRef.current) {
+        clearTimeout(zoomDebounceRef.current);
+      }
+      
+      // Wait 500ms after zoom stops before fetching
+      zoomDebounceRef.current = setTimeout(() => {
+        if (!map.current || !lastFetchPosition.current) return;
+        
+        const zoom = map.current.getZoom();
+        const radius = calculateRadiusFromZoom(zoom);
+        console.log(`[Live Tracking] Zoom changed - fetching with new radius ${radius}m`);
+        
+        fetchPlaces(
+          lastFetchPosition.current.lat,
+          lastFetchPosition.current.lng,
+          radius
+        );
+      }, 500);
+    };
+
+    map.current?.on('zoomend', handleZoomEnd);
+
     return () => {
       navigator.geolocation.clearWatch(watchId);
+      if (zoomDebounceRef.current) {
+        clearTimeout(zoomDebounceRef.current);
+      }
+      map.current?.off('zoomend', handleZoomEnd);
       console.log('[Map] Stopped Live Tracking');
     };
-  }, [exploreMode, fetchPlaces]);
+  }, [exploreMode, fetchPlaces, getDistance]);
 
   // Cleanup socket on unmount
   useEffect(() => {
@@ -349,6 +457,11 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
       
       {isLoading && <LoadingIndicator />}
+
+      <SearchBar
+        onMoveToLocation={moveToLocation}
+        onViewSpendingReport={handleSearchSpendingReport}
+      />
 
       <MapControls
         placesCount={places.length}

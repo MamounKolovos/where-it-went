@@ -211,6 +211,62 @@ def process_table_data() -> tuple[flask.Response, HTTPStatus]:
     return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
+# Autocomplete Endpoint
+@bp.route("/api/autocomplete", methods=[HTTPMethod.POST])
+def autocomplete() -> tuple[flask.Response, HTTPStatus]:
+  """Autocomplete location search using Google Places Autocomplete API."""
+  search_request_result: Result[api.AutocompleteRequest, str] = result.do(
+    Ok(search_request)
+    for json in parse_post_json(request)
+    for search_request in decode_model(api.AutocompleteRequest, json)
+  )
+
+  match search_request_result:
+    case Ok(search_request):
+      try:
+        # Build API request
+        api_request = api.build_autocomplete_api_request(
+          input_text=search_request.input
+        )
+
+        # Send request to Google Places API
+        response_result = api.send_autocomplete_request(api_request)
+        match response_result:
+          case Ok(response_body):
+            # Handle the response
+            api_response_result = api.handle_autocomplete_response(
+              response_body
+            )
+            match api_response_result:
+              case Ok(api_response):
+                # Extract top place prediction
+                suggestion = None
+                if api_response.suggestions:
+                  first_suggestion = api_response.suggestions[0]
+                  if first_suggestion.place_prediction:
+                    # Return main text (place name) without full address
+                    prediction = first_suggestion.place_prediction
+                    suggestion = prediction.structured_format.main_text.text
+
+                return jsonify({"suggestion": suggestion}), HTTPStatus.OK
+              case Err(error):
+                return jsonify(
+                  {"error": f"Failed to parse API response: {error}"}
+                ), HTTPStatus.BAD_REQUEST
+          case Err(error):
+            return jsonify(
+              {"error": f"API request failed: {error}"}
+            ), HTTPStatus.BAD_REQUEST
+
+      except Exception as e:
+        return jsonify(
+          {"error": f"Internal server error: {e}"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    case Err(e):
+      return jsonify({"error": e}), HTTPStatus.BAD_REQUEST
+
+
 # Text Search Endpoint
 @bp.route("/api/text-search", methods=[HTTPMethod.POST])
 def text_search() -> tuple[flask.Response, HTTPStatus]:

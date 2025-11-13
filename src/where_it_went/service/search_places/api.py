@@ -13,6 +13,7 @@ from where_it_went.utils.result import Ok, Result
 API_URL = "https://places.googleapis.com/v1"
 SEARCH_NEARBY_ENDPOINT = "/places:searchNearby"
 TEXT_SEARCH_ENDPOINT = "/places:searchText"
+AUTOCOMPLETE_ENDPOINT = "/places:autocomplete"
 
 # Exclude types NOT relevant for federal spending
 EXCLUDED_PLACE_TYPES = [
@@ -282,6 +283,107 @@ def handle_text_search_response(
 ) -> Result[TextSearchApiResponse, str]:
   return pipe(
     decode_model(TextSearchApiResponse, response_body),
+    result.unwrap(),
+    Ok,
+  )
+
+
+# ============= AUTOCOMPLETE API =============
+
+
+class AutocompleteRequest(BaseModel):
+  input: str
+
+
+class AutocompleteApiRequest(BaseModel):
+  input: str
+  language_code: str = Field(default="en", alias="languageCode")
+  region_code: str = Field(default="US", alias="regionCode")
+  include_query_predictions: bool = Field(
+    default=False, alias="includeQueryPredictions"
+  )
+
+
+class FormattableText(BaseModel):
+  text: str
+
+
+class StructuredFormat(BaseModel):
+  main_text: FormattableText = Field(..., alias="mainText")
+  secondary_text: FormattableText = Field(..., alias="secondaryText")
+
+
+class PlacePrediction(BaseModel):
+  place: str
+  place_id: str = Field(..., alias="placeId")
+  text: FormattableText
+  structured_format: StructuredFormat = Field(..., alias="structuredFormat")
+  types: list[str] = []
+
+
+class Suggestion(BaseModel):
+  place_prediction: PlacePrediction | None = Field(
+    None, alias="placePrediction"
+  )
+
+
+class AutocompleteApiResponse(BaseModel):
+  suggestions: list[Suggestion] = []
+
+
+def build_autocomplete_api_request(input_text: str) -> AutocompleteApiRequest:
+  request_dict: dict[str, Any] = {
+    "input": input_text,
+    "languageCode": "en",
+    "regionCode": "US",
+    "includeQueryPredictions": False,  # Only place predictions
+  }
+  return AutocompleteApiRequest(**request_dict)
+
+
+@result.with_unwrap
+def send_autocomplete_request(
+  api_request_model: AutocompleteApiRequest,
+) -> Result[dict[str, Any], str]:
+  places_api_key = pipe(
+    config.get_places_api_key(),
+    result.replace_error(
+      (
+        "Request does not have necessary authorization credentials, "
+        + "must provide Places API Key",
+        HTTPStatus.UNAUTHORIZED,
+      )
+    ),
+    result.unwrap(),
+  )
+
+  # Autocomplete session
+  autocomplete_session = requests.Session()
+  autocomplete_session.headers.update(
+    {
+      "Content-Type": "application/json",
+    }
+  )
+
+  autocomplete_response = autocomplete_session.post(
+    API_URL + AUTOCOMPLETE_ENDPOINT,
+    json=api_request_model.model_dump(by_alias=True),
+    headers={"X-Goog-Api-Key": places_api_key},
+  )
+
+  return pipe(
+    autocomplete_response,
+    parse_response_json,
+    result.unwrap(),
+  )
+
+
+@result.with_unwrap
+def handle_autocomplete_response(
+  response_body: dict[str, Any],
+) -> Result[AutocompleteApiResponse, str]:
+  return pipe(
+    decode_model(AutocompleteApiResponse, response_body),
     result.unwrap(),
     Ok,
   )

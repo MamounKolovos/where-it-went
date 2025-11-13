@@ -22,13 +22,17 @@ const MapControls: FC<MapControlsProps> = ({
         <div className="places-count">
           {placesCount > 0 && `Found ${placesCount} places`}
         </div>
-        <button
-          className={`demo-mode-toggle ${!exploreMode ? 'active' : ''}`}
-          onClick={onToggleMode}
-          title={exploreMode ? 'Switch to Live Tracking' : 'Switch to Explore Mode'}
-        >
-          {exploreMode ? '🗺️ Explore Mode' : '📍 Live Tracking'}
-        </button>
+        <div className="mode-toggle-container">
+          <span className="mode-label">Live Tracking</span>
+          <button
+            className="toggle-switch"
+            onClick={onToggleMode}
+            title={exploreMode ? 'Switch to Live Tracking' : 'Switch to Explore Mode'}
+            aria-label="Toggle between Live Tracking and Explore Mode"
+          >
+            <span className={`toggle-slider ${!exploreMode ? 'active' : ''}`}></span>
+          </button>
+        </div>
       </div>
 
       {/* Recenter button - Google Maps style on right side */}
