@@ -35,14 +35,32 @@ const ChartSelector: FC<ChartSelectorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFeature, selectedChartType, data]);
 
+  const createDynamicRanges = (amounts: number[]) => {
+    if (amounts.length === 0) return [];
+    
+    const sorted = [...amounts].sort((a, b) => a - b);
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+    
+    if (min === max) {
+      return [{ label: `$${min.toLocaleString()}`, min, max: min + 1 }];
+    }
+    
+    const range = max - min;
+    const bucketSize = range / 4;
+    
+    return [
+      { label: `$${min.toLocaleString()} - $${Math.round(min + bucketSize).toLocaleString()}`, min, max: min + bucketSize },
+      { label: `$${Math.round(min + bucketSize).toLocaleString()} - $${Math.round(min + 2 * bucketSize).toLocaleString()}`, min: min + bucketSize, max: min + 2 * bucketSize },
+      { label: `$${Math.round(min + 2 * bucketSize).toLocaleString()} - $${Math.round(min + 3 * bucketSize).toLocaleString()}`, min: min + 2 * bucketSize, max: min + 3 * bucketSize },
+      { label: `$${Math.round(min + 3 * bucketSize).toLocaleString()} - $${max.toLocaleString()}`, min: min + 3 * bucketSize, max: max + 1 }
+    ];
+  };
+
   const processData = () => {
     if (selectedFeature === 'award_amount') {
-      const ranges = [
-        { label: 'Under $1M', min: 0, max: 1000000 },
-        { label: '$1M - $5M', min: 1000000, max: 5000000 },
-        { label: '$5M - $20M', min: 5000000, max: 20000000 },
-        { label: 'Over $20M', min: 20000000, max: Infinity }
-      ];
+      const amounts = data.map(item => item.award_amount);
+      const ranges = createDynamicRanges(amounts);
       
       const counts = ranges.map(range => 
         data.filter(item => item.award_amount >= range.min && item.award_amount < range.max).length
@@ -129,4 +147,3 @@ const ChartSelector: FC<ChartSelectorProps> = ({
 };
 
 export default ChartSelector;
-
