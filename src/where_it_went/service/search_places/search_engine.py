@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from redis import Redis
@@ -31,7 +32,7 @@ def decode_place(api_place: api.ApiPlace) -> Result[Place, str]:
       f"Api could not find the state that {api_place.display_name.name} is in"
     ),
     result.unwrap(),
-    lambda component: component.short_text,
+    lambda component: component.short_text or component.long_text,
   )
 
   zip_code = pipe(
@@ -263,6 +264,7 @@ def get_places_in_region(
   region: s2helpers.SearchRegion,
   update_stream_callback: Callable[[list[Place]], None],
   should_cancel: Callable[[], bool] | None = None,
+  greenlets_container: list[Any] | None = None,
 ) -> list[Place]:
   print(
     f"\n[DEBUG] === Getting places for region at ({region.latitude:.6f}, {region.longitude:.6f}) with radius {region.radius}m ==="  # noqa: E501
@@ -273,7 +275,6 @@ def get_places_in_region(
   print(f"[DEBUG] Parent cell: {parent.token} (level {parent.level})")
   # including parent cell only when the region is within the cell
   neighbors = []
-  places_returned: list[Place] = []
   dist_from_point_to_cell_boundary = calc_dist_from_region_to_nearest_boundary(
     region, parent
   )
@@ -289,15 +290,18 @@ def get_places_in_region(
   else:
     print("[DEBUG] Region stays within parent cell - checking 1 cell")
 
+  places_returned: list[Place] = []
   for neighbor in neighbors if neighbors else [parent]:
-    places_returned = get_places_in_region_loop(
+    neighbor_places = get_places_in_region_loop(
       client,
       dynamodb_client,
       region,
       neighbor,
       update_stream_callback,
       should_cancel,
+      greenlets_container,
     )
+    places_returned.extend(neighbor_places)
 
   filtered_places = listutils.filter(
     lambda place: s2helpers.haversine_distance(
@@ -319,6 +323,7 @@ def get_places_in_region_loop(
   cell: s2helpers.Cell,
   update_stream_callback: Callable[[list[Place]], None],
   should_cancel: Callable[[], bool] | None = None,
+  greenlets_container: list[Any] | None = None,
 ) -> list[Place]:
   # Check if request was cancelled
   if should_cancel and should_cancel():
@@ -340,11 +345,15 @@ def get_places_in_region_loop(
             case Ok(places):
               fetched_places = places
             case _:
-              fetched_places = pipe(
-                cell,
-                fetch_places_for_cell,
-                result.unwrap_or([]),
-              )
+              fetch_result = fetch_places_for_cell(cell)
+              match fetch_result:
+                case Ok(places):
+                  fetched_places = places
+                case Err(error):
+                  print(
+                    f"[DEBUG] ERROR fetching places for {cell.token}: {error}"
+                  )
+                  fetched_places = []
               # Only cache non-empty results
               if fetched_places:
                 cache_places(client, cell, fetched_places)
@@ -358,43 +367,105 @@ def get_places_in_region_loop(
         print(f"[DEBUG] Error acquiring lock for cell {cell.token}: {e}")
         return []
     case level:
+      import eventlet  # pyright: ignore[reportMissingTypeStubs]
+
       parent_places: list[Place] = []
-      for child in s2helpers.get_children(cell):
-        if should_cancel and should_cancel():
-          print("[DEBUG] Request cancelled")
-          return []
-        match load_places_from_cache(client, child):
-          case Ok(child_places):
-            count = len(child_places)
-            print(f"[DEBUG] Loaded {count} from cache for child {child.token}")
-            parent_places.extend(child_places)
-            filter_places_for_stream(
-              child_places, region, update_stream_callback
-            )
-          case Err(CacheMiss()):
-            match load_places_from_dynamodb(dynamodb_client, child):
-              case Ok(child_places):
-                # cache the child places to avoid fetching from the db again
-                cache_places(client, child, child_places)
-                parent_places.extend(child_places)
-                filter_places_for_stream(
-                  child_places, region, update_stream_callback
-                )
-              case _:
-                child_places = get_places_in_region_loop(
-                  client,
-                  dynamodb_client,
-                  region,
-                  child,
-                  update_stream_callback,
-                  should_cancel,
-                )
-                parent_places.extend(child_places)
-          case Err(CorruptedValue()):
-            print("[DEBUG] Value corrupted")
-            pass
-          case _:
-            pass
+
+      # Use parallel processing for levels 10-13 to speed up large searches
+      use_parallel = level >= 10 and level <= 13
+
+      if use_parallel:
+        children = s2helpers.get_children(cell)
+
+        def process_child(child: s2helpers.Cell) -> list[Place]:
+          if should_cancel and should_cancel():
+            return []
+
+          match load_places_from_cache(client, child):
+            case Ok(child_places):
+              filter_places_for_stream(
+                child_places, region, update_stream_callback
+              )
+              return child_places
+            case Err(CacheMiss()):
+              match load_places_from_dynamodb(dynamodb_client, child):
+                case Ok(child_places):
+                  cache_places(client, child, child_places)
+                  filter_places_for_stream(
+                    child_places, region, update_stream_callback
+                  )
+                  return child_places
+                case _:
+                  return get_places_in_region_loop(
+                    client,
+                    dynamodb_client,
+                    region,
+                    child,
+                    update_stream_callback,
+                    should_cancel,
+                    greenlets_container,
+                  )
+            case _:
+              return []
+
+        # Spawn greenlets for parallel processing
+        greenlets = [
+          eventlet.spawn(process_child, child)  # pyright: ignore[reportUnknownMemberType]
+          for child in children
+        ]
+
+        # Storing greenlets in container for cancellation
+        # if concurrent request are made before the previous request is finished
+        if greenlets_container is not None:
+          greenlets_container.extend(greenlets)
+
+        for greenlet in greenlets:
+          try:
+            greenlet_result = greenlet.wait()  # pyright: ignore[reportUnknownVariableType]
+            match greenlet_result:
+              case list() if greenlet_result:
+                parent_places.extend(greenlet_result)  # pyright: ignore[reportUnknownArgumentType]
+              case _:  # pyright: ignore[reportUnknownVariableType]
+                pass
+          except Exception as e:
+            print(f"[DEBUG] Greenlet error: {e}")
+      else:
+        # not using parallel processing for lower levels
+        for child in s2helpers.get_children(cell):
+          if should_cancel and should_cancel():
+            print("[DEBUG] Request cancelled")
+            return []
+          match load_places_from_cache(client, child):
+            case Ok(child_places):
+              parent_places.extend(child_places)
+              filter_places_for_stream(
+                child_places, region, update_stream_callback
+              )
+            case Err(CacheMiss()):
+              match load_places_from_dynamodb(dynamodb_client, child):
+                case Ok(child_places):
+                  # cache the child places to avoid fetching from the db again
+                  cache_places(client, child, child_places)
+                  parent_places.extend(child_places)
+                  filter_places_for_stream(
+                    child_places, region, update_stream_callback
+                  )
+                case _:
+                  child_places = get_places_in_region_loop(
+                    client,
+                    dynamodb_client,
+                    region,
+                    child,
+                    update_stream_callback,
+                    should_cancel,
+                    greenlets_container,
+                  )
+                  parent_places.extend(child_places)
+            case Err(CorruptedValue()):
+              print("[DEBUG] Value corrupted")
+              pass
+            case _:
+              pass
       # Cache the parent places (only if non-empty)
       if parent_places:
         cache_places(client, cell, parent_places)

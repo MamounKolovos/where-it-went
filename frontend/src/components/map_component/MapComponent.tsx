@@ -253,14 +253,18 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
         zoom: 14,
         duration: 1500
       });
-      fetchPlaces(initialLocation.lat, initialLocation.lng);
+      // Only fetch on load if we are not in explore mode
+      if (!exploreMode) {
+        const initialRadius = calculateRadiusFromZoom(14);
+        fetchPlaces(initialLocation.lat, initialLocation.lng, initialRadius); // pyright: ignore[reportUnknownVariableType]
+      }
     });
 
     return () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [initialLocation, fetchPlaces]);
+  }, [initialLocation, fetchPlaces, exploreMode]);
 
   // If in Explore mode, we update places as map moves with debounce
   useEffect(() => {

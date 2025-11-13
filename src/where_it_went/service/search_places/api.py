@@ -108,7 +108,7 @@ class NearbySearchPlacesApiRequest(BaseModel):
 
 
 class DisplayName(BaseModel):
-  language_code: str = Field(..., alias="languageCode")
+  language_code: str | None = Field(None, alias="languageCode")
   name: str = Field(..., alias="text")
 
 
@@ -119,7 +119,7 @@ class Location(BaseModel):
 
 class AddressComponent(BaseModel):
   long_text: str = Field(..., alias="longText")
-  short_text: str = Field(..., alias="shortText")
+  short_text: str | None = Field(None, alias="shortText")
   types: list[str] = Field(default_factory=list)
 
 
