@@ -250,11 +250,4 @@ Add this to your VS Code settings (`.vscode/settings.json` or User Settings):
 - Real-time suggestion updates
 - "Fly To" feature to quickly navigate to searched locations in explore mode
 
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contributing guidelines here]
 
