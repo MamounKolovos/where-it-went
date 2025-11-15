@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@turf/turf": "^7.2.0",
     "@types/mapbox-gl": "^3.4.1",
     "chart.js": "^4.4.0",
     "mapbox-gl": "^3.15.0",
