@@ -17,13 +17,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/socket.io': {
-        target: 'http://10.133.199.209:5000', 
+        target: 'http://localhost:5000', 
         ws: true,
       },
-      '/api': 'http://10.133.199.209:5000',
-      '/search-spending-by-award': 'http://10.133.199.209:5000',
-      '/health': 'http://10.133.199.209:5000',
+      '/api': 'http://localhost:5000',
+      '/search-spending-by-award': 'http://localhost:5000',
+      '/health': 'http://localhost:5000',
     },
   },
 });
-
