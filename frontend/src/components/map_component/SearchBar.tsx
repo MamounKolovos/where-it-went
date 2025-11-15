@@ -340,7 +340,7 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport,
           <input
             type="text"
             className="search-input"
-            placeholder="Search                                                      Tab ↹ to autocomplete"
+            placeholder="Search                                                     "
             value={searchQuery}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
