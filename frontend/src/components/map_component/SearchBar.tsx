@@ -23,9 +23,10 @@ interface SearchResult {
 interface SearchBarProps {
   onMoveToLocation: (lat: number, lng: number) => void;
   onViewSpendingReport: (place: Place) => void;
+  exploreMode: boolean;
 }
 
-const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport }) => {
+const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport, exploreMode }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -36,6 +37,8 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoSearchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentExpectedQueryRef = useRef<string>('');
+  const currentSearchQueryRef = useRef<string>('');
 
   // Close results when clicking outside
   useEffect(() => {
@@ -62,10 +65,25 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
   }, []);
 
   const fetchAutocomplete = async (query: string) => {
-    if (!query.trim()) {
+    const trimmedQuery = query.trim();
+    
+    if (!trimmedQuery) {
       setSuggestion('');
+      currentExpectedQueryRef.current = '';
+      setIsUpdatingResults(false); // Clear loading state
       return;
     }
+
+    // Minimum query length to avoid unnecessary/error-prone requests
+    if (trimmedQuery.length < 3) {
+      setSuggestion('');
+      currentExpectedQueryRef.current = '';
+      setIsUpdatingResults(false); // Clear loading state
+      return;
+    }
+
+    // Update the expected query for this request
+    currentExpectedQueryRef.current = trimmedQuery;
 
     try {
       const response = await fetch('/api/autocomplete', {
@@ -74,57 +92,111 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          input: query,
+          input: trimmedQuery,
         }),
       });
 
+      // Check if this response is still relevant (query hasn't changed)
+      // Use ref to get the most current value, not stale state
+      const currentQuery = currentSearchQueryRef.current.trim();
+      if (currentQuery !== trimmedQuery) {
+        // Query has changed, ignore this response
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`Autocomplete failed: ${response.statusText}`);
+        // Only process error if query still matches
+        if (currentQuery === trimmedQuery && response.status !== 400) {
+          // Log non-400 errors only if still relevant
+          console.error('Autocomplete error:', response.statusText);
+        }
+        return;
+      }
+
+      // Double-check query still matches before processing response
+      if (currentSearchQueryRef.current.trim() !== trimmedQuery) {
+        return;
       }
 
       const data = await response.json();
       const newSuggestion = data.suggestion || '';
-      setSuggestion(newSuggestion);
+      
+      // check if query still matches before setting suggestion
+      // Use ref to ensure we're checking against the latest value
+      if (currentSearchQueryRef.current.trim() === trimmedQuery && currentExpectedQueryRef.current === trimmedQuery) {
+        setSuggestion(newSuggestion);
 
-      // If we got a suggestion, set up auto-search after 1 second
-      if (newSuggestion) {
-        // Clear any existing auto-search timer
-        if (autoSearchTimerRef.current) {
-          clearTimeout(autoSearchTimerRef.current);
+        // If we got a suggestion, set up auto-search after 2 seconds
+        if (newSuggestion) {
+          // Clear any existing auto-search timer
+          if (autoSearchTimerRef.current) {
+            clearTimeout(autoSearchTimerRef.current);
+          }
+
+          // Set new auto-search timer
+          autoSearchTimerRef.current = setTimeout(() => {
+            // check before auto-searching - use ref for current value
+            if (currentSearchQueryRef.current.trim() === trimmedQuery && currentExpectedQueryRef.current === trimmedQuery) {
+              console.log('[Auto-search] Triggering search for:', newSuggestion);
+              performSearch(newSuggestion);
+            }
+          }, 1000);
         }
-
-        // Set new auto-search timer
-        autoSearchTimerRef.current = setTimeout(() => {
-          console.log('[Auto-search] Triggering search for:', newSuggestion);
-          performSearch(newSuggestion);
-        }, 1000);
       }
     } catch (err) {
-      console.error('Autocomplete error:', err);
+      // Check if this error is still relevant - use ref for current value
+      const currentQuery = currentSearchQueryRef.current.trim();
+      if (currentQuery !== trimmedQuery) {
+        // Query has changed, ignore this error
+        return;
+      }
+      // Silently ignore all errors - network errors, 400s, etc.
+      // Don't log anything to avoid console spam
       setSuggestion('');
     }
   };
 
   const handleInputChange = (value: string) => {
     setSearchQuery(value);
+    // Update ref immediately so it's always current
+    currentSearchQueryRef.current = value;
     
     // Clear existing timers
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
+    // Cancel auto-search when user continues typing
     if (autoSearchTimerRef.current) {
       clearTimeout(autoSearchTimerRef.current);
+      autoSearchTimerRef.current = null;
     }
 
-    // Mark that we're updating (if results are already visible)
-    if (showResults) {
+    // Clear suggestion when user types
+    setSuggestion('');
+    
+    // Clear expected query when user types (so old responses are ignored)
+    // We'll set it again when we make the actual request
+    currentExpectedQueryRef.current = '';
+
+    // Mark that we're updating (if results are already visible and query is not empty)
+    if (showResults && value.trim().length > 0) {
       setIsUpdatingResults(true);
+    } else {
+      // Clear updating state if input is empty
+      setIsUpdatingResults(false);
     }
 
-    // Set new timer for autocomplete (300ms debounce)
+    // Set new timer for autocomplete (500ms debounce)
     debounceTimerRef.current = setTimeout(() => {
-      fetchAutocomplete(value);
-    }, 300);
+      // Get the CURRENT value from ref, which is always up-to-date
+      const currentValue = currentSearchQueryRef.current.trim();
+      if (currentValue.length >= 3) {
+        fetchAutocomplete(currentValue);
+      } else {
+        // Clear updating state if query is too short
+        setIsUpdatingResults(false);
+      }
+    }, 500);
   };
 
   const performSearch = async (query: string) => {
@@ -161,6 +233,7 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
       setSearchResults([]);
     } finally {
       setIsSearching(false);
+      setIsUpdatingResults(false); // Clear updating state when search completes
     }
   };
 
@@ -321,7 +394,7 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
           {isUpdatingResults && (
             <div className="search-updating-banner">
               <span className="loading-spinner"></span>
-              <span>Gimme a sec...</span>
+              <span>Loading...</span>
             </div>
           )}
           {searchResults.map((result, index) => (
@@ -340,7 +413,8 @@ const SearchBar: FC<SearchBarProps> = ({ onMoveToLocation, onViewSpendingReport 
                 <button
                   className="search-action-button move-to"
                   onClick={() => handleMoveToResult(result)}
-                  title="Move to this location"
+                  disabled={!exploreMode}
+                  title={exploreMode ? "Move to this location" : "Switch to explore mode to fly to other places"}
                 >
                   Fly To
                 </button>

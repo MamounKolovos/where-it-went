@@ -178,13 +178,9 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
   const moveToLocation = useCallback((lat: number, lng: number) => {
     if (!map.current) return;
 
-    // If in Live Tracking mode, switch to Explore Mode
-    // so user can stay at the searched location
-    if (!exploreMode) {
-      setExploreMode(true);
-    }
-
     // Fly to the new location with smooth animation
+    // Note: In Live Tracking mode, the Fly To button is disabled
+    // User must manually switch to Explore Mode to use this feature
     map.current.flyTo({
       center: [lng, lat],
       zoom: 14,
@@ -661,6 +657,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       <SearchBar
         onMoveToLocation={moveToLocation}
         onViewSpendingReport={handleSearchSpendingReport}
+        exploreMode={exploreMode}
       />
 
       <MapControls
