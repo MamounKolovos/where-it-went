@@ -320,18 +320,17 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
 
         console.log(`[Map] STREAMING: Received ${data.places.length} places (request ${currentRequestId})`);
 
-        // Add markers immediately for visual feedback
+
         data.places.forEach((place) => {
           console.log(`[Map] Adding marker for: ${place.name}`);
           addMarkerToMap(place);
         });
 
-        // Update state
-        setPlaces((prev) => [...prev, ...data.places]);
+                setPlaces((prev) => [...prev, ...data.places]);
       });
 
       socketService.onPlacesComplete((data) => {
-        // Ignore completion from old requests
+      
         if (requestIdRef.current !== currentRequestId) {
           console.log('[Map] Ignoring completion from old request');
           return;
@@ -347,7 +346,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
         setIsLoading(false);
       });
 
-      // Emit location update to start streaming
+    
       socketService.emitLocationUpdate({
         latitude,
         longitude,
@@ -357,7 +356,6 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     [clearMarkers, addMarkerToMap, exploreMode]
   );
 
-  // Initialize map and load initial places
   useEffect(() => {
     if (map.current || !mapContainer.current) {
       console.log('[Map] Skipping initialization:', { hasMap: !!map.current, hasContainer: !!mapContainer.current });
@@ -369,13 +367,14 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
       return;
     }
 
-    // Use initialLocation if provided, otherwise use default location
+  
     const location = initialLocation || { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
     console.log('[Map] Initializing map with location:', location);
 
-    // Determine initial style based on theme
+    //  style based on theme
     const initialStyle = mapTheme === "light"
-      ? "mapbox://styles/mapbox/light-v11"
+      ? "mapbox://styles/mapbox/streets-v11"
+
       : "mapbox://styles/mapbox/dark-v11";
 
     try {
