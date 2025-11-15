@@ -10,6 +10,7 @@ import ErrorBanner from '@components/map_component/ErrorBanner';
 import LoadingIndicator from '@components/map_component/LoadingIndicator';
 import MapControls from '@components/map_component/MapControls';
 import SearchBar from '@components/map_component/SearchBar';
+import { circle as turfCircle } from "@turf/turf";
 import './MapComponent.css';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
@@ -18,6 +19,8 @@ if (MAPBOX_TOKEN) {
 }
 
 // Default location: George Mason University
+const DEFAULT_LAT = 38.832352857203624;
+const DEFAULT_LNG = -77.31284409452543;
 const DEFAULT_RADIUS = 500; // meters
 
 // Calculate search radius based on zoom level
@@ -30,7 +33,7 @@ const calculateRadiusFromZoom = (zoom: number): number => {
 
 interface MapComponentProps {
   initialLocation: { lat: number; lng: number } | null;
-  startWithTracking?: boolean; 
+  startWithTracking?: boolean;
 }
 
 const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTracking = false }) => {
@@ -45,6 +48,8 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
   const [exploreMode, setExploreMode] = useState(!startWithTracking); // If tracking allowed, start in Live Tracking mode
   const [spendingData, setSpendingData] = useState<SpendingData | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapTheme, setMapTheme] = useState<"light" | "dark">("light");
+  const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
   const requestIdRef = useRef<number>(0); // Track request ID to ignore old updates
   const lastFetchPosition = useRef<{ lat: number; lng: number } | null>(null); // Last position where we fetched data
   const zoomDebounceRef = useRef<NodeJS.Timeout | null>(null); // Debounce timer for zoom changes
@@ -59,17 +64,17 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     const R = 6371000; // Earth radius in meters
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }, []);
 
   const fetchSpendingData = useCallback(async (place: Place) => {
     try {
       console.log(`[Map] Fetching spending data for: ${place.name}, ${place.state} ${place.zip_code}`);
-      
+
       // Searching by recipient, state, and zip 
       const params = new URLSearchParams({
         recipient: place.name,
@@ -77,11 +82,11 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
         zip: place.zip_code
       });
       const response = await fetch(`/search-spending-by-award?${params}`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data: SpendingData = await response.json();
       console.log(`[Map] Spending data response:`, data);
       console.log(`[Map] Found ${data.results.length} spending records`);
@@ -93,26 +98,42 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     }
   }, []);
 
+
   const addMarkerToMap = useCallback(
     (place: Place, isTarget: boolean = false) => {
       if (!map.current) return;
 
-      const div = document.createElement('div');
-      div.className = isTarget ? 'marker-target' : 'marker-place';
-      div.style.width = '20px';
-      div.style.height = '20px';
-      div.style.background = isTarget ? '#ef4444' : '#3b82f6';
-      div.style.borderRadius = '50%';
-      div.style.border = '2px solid white';
-      div.style.cursor = 'pointer';
-      div.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+      const markerElement = document.createElement('div');
+      markerElement.className = isTarget ? 'marker-target' : 'marker-place';
 
-      const marker = new mapboxgl.Marker(div)
+
+      const img = document.createElement('img');
+
+      img.src = '/landmark-icon.png';
+      img.style.width = '32px';
+      img.style.height = '32px';
+      img.style.cursor = 'pointer';
+      img.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+      img.alt = place.name || 'Place marker';
+      img.onerror = () => {
+        console.error('[Map] Failed to load landmark icon, using fallback');
+        // Fallback code
+        markerElement.style.width = '20px';
+        markerElement.style.height = '20px';
+        markerElement.style.background = '#3b82f6';
+        markerElement.style.borderRadius = '50%';
+        markerElement.style.border = '2px solid white';
+        markerElement.style.cursor = 'pointer';
+        markerElement.style.boxShadow = '0 2px 4px rgba(25, 21, 21, 0.3)';
+      };
+      markerElement.appendChild(img);
+
+      const marker = new mapboxgl.Marker(markerElement)
         .setLngLat([place.longitude, place.latitude])
         .addTo(map.current);
 
       if (isTarget) {
-        div.addEventListener('click', () => setIsReportVisible(true));
+        markerElement.addEventListener('click', () => setIsReportVisible(true));
       } else {
         const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
           `<div style="padding: 12px; min-width: 200px;">
@@ -134,7 +155,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
           const btn = document.getElementById(`spending-btn-${place.latitude}-${place.longitude}`);
           btn?.addEventListener('click', () => fetchSpendingData(place));
         });
-        
+
         marker.setPopup(popup);
       }
 
@@ -146,7 +167,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
 
   const recenterMap = useCallback(() => {
     if (!map.current || !userLocation) return;
-    
+
     map.current.flyTo({
       center: [userLocation.lng, userLocation.lat],
       zoom: 14,
@@ -177,33 +198,105 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     fetchSpendingData(place);
   }, [fetchSpendingData]);
 
+  //blue cicle around the user
+
+  const updateRadiusCircle = (
+    mapInstance: mapboxgl.Map,
+    center: { lat: number; lng: number },
+    radiusMeters: number
+  ) => {
+    // Only add layers if map is loaded
+    if (!mapInstance.isStyleLoaded()) {
+      console.warn('[Map] Map style not loaded yet, skipping radius circle');
+      return;
+    }
+
+    try {
+      const sourceId = "user-radius-source";
+      const fillLayerId = "user-radius-fill";
+      const outlineLayerId = "user-radius-outline";
+
+      const circleFeature = turfCircle([center.lng, center.lat], radiusMeters / 1000, {
+        steps: 64,
+        units: "kilometers",
+      });
+
+      const data = {
+        type: "FeatureCollection",
+        features: [circleFeature],
+      };
+
+      // Update if source already exists
+      const existing = mapInstance.getSource(sourceId) as mapboxgl.GeoJSONSource | undefined;
+      if (existing) {
+        existing.setData(data as GeoJSON.FeatureCollection);
+        return;
+      }
+
+      // Otherwise create source + layers
+      mapInstance.addSource(sourceId, {
+        type: "geojson",
+        data: data as GeoJSON.FeatureCollection,
+      });
+
+      mapInstance.addLayer({
+        id: fillLayerId,
+        type: "fill",
+        source: sourceId,
+        paint: {
+          "fill-color": "rgba(0, 122, 255, 0.15)",
+          "fill-outline-color": "transparent",
+        },
+      });
+
+      mapInstance.addLayer({
+        id: outlineLayerId,
+        type: "line",
+        source: sourceId,
+        paint: {
+          "line-color": "#007AFF",
+          "line-width": 2,
+        },
+      });
+    } catch (error) {
+      console.error('[Map] Error updating radius circle:', error);
+    }
+  };
+
+
   const fetchPlaces = useCallback(
     (latitude: number, longitude: number, customRadius?: number) => {
       // Increment request ID to track this new request
       requestIdRef.current += 1;
       const currentRequestId = requestIdRef.current;
-      
+
       setIsLoading(true);
       setError(null);
       setPlaces([]);
       clearMarkers();
-      
+
       // Update tracked user location
       setUserLocation({ lat: latitude, lng: longitude });
-      
+
       const radius = customRadius || DEFAULT_RADIUS;
+      // Only update circle if map is loaded and ready
+      if (map.current && map.current.isStyleLoaded()) {
+        updateRadiusCircle(map.current, { lat: latitude, lng: longitude }, radius);
+      } else if (map.current) {
+        // Wait for map to load before adding circle
+        map.current.once('load', () => {
+          updateRadiusCircle(map.current!, { lat: latitude, lng: longitude }, radius);
+        });
+      }
 
       // Add marker for user's current location
       if (map.current) {
         const userMarker = document.createElement('div');
-        userMarker.className = 'marker-user';
-        userMarker.style.width = '24px';
-        userMarker.style.height = '24px';
-        userMarker.style.background = '#ef4444';
-        userMarker.style.borderRadius = '50%';
-        userMarker.style.border = '3px solid white';
-        userMarker.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
-        
+        userMarker.className = 'google-location-dot';
+        const ring = document.createElement('div');
+        ring.className = 'pulse-ring';
+        userMarker.appendChild(ring);
+
         const marker = new mapboxgl.Marker(userMarker)
           .setLngLat([longitude, latitude])
           .setPopup(
@@ -212,13 +305,14 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
             )
           )
           .addTo(map.current);
-        
+
         markers.current.push(marker);
       }
 
+
       // Clean up old listeners before adding new ones
       socketService.removeAllListeners();
-      
+
       socketService.connect();
 
       socketService.onPlacesUpdate((data) => {
@@ -227,15 +321,15 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
           console.log(`[Map] Ignoring update from old request (current: ${requestIdRef.current}, received: ${currentRequestId})`);
           return;
         }
-        
+
         console.log(`[Map] STREAMING: Received ${data.places.length} places (request ${currentRequestId})`);
-        
+
         // Add markers immediately for visual feedback
         data.places.forEach((place) => {
           console.log(`[Map] Adding marker for: ${place.name}`);
           addMarkerToMap(place);
         });
-        
+
         // Update state
         setPlaces((prev) => [...prev, ...data.places]);
       });
@@ -246,7 +340,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
           console.log('[Map] Ignoring completion from old request');
           return;
         }
-        
+
         console.log('[Map] Places streaming complete. Total:', data.total);
         setIsLoading(false);
       });
@@ -267,42 +361,62 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     [clearMarkers, addMarkerToMap, exploreMode]
   );
 
-    // Initialize map and load initial places
+  // Initialize map and load initial places
   useEffect(() => {
-    if (map.current || !mapContainer.current || !initialLocation) return;
+    if (map.current || !mapContainer.current) {
+      console.log('[Map] Skipping initialization:', { hasMap: !!map.current, hasContainer: !!mapContainer.current });
+      return;
+    }
 
     if (!MAPBOX_TOKEN) {
       setError('Mapbox token not configured. Please check your .env file.');
       return;
     }
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [initialLocation.lng, initialLocation.lat],
-      zoom: 14,
-    });
+    // Use initialLocation if provided, otherwise use default location
+    const location = initialLocation || { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+    console.log('[Map] Initializing map with location:', location);
+
+    // Determine initial style based on theme
+    const initialStyle = mapTheme === "light"
+      ? "mapbox://styles/mapbox/light-v11"
+      : "mapbox://styles/mapbox/dark-v11";
+
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: initialStyle,
+        center: [location.lng, location.lat],
+        zoom: 14,
+      });
+      console.log('[Map] Map instance created with style:', initialStyle);
+    } catch (error) {
+      console.error('[Map] Error creating map:', error);
+      setError('Failed to initialize map. Please check your Mapbox token.');
+      return;
+    }
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     map.current.on('load', () => {
+      console.log('[Map] Map loaded successfully');
       map.current!.flyTo({
-        center: [initialLocation.lng, initialLocation.lat],
+        center: [location.lng, location.lat],
         zoom: 14,
         duration: 1500
       });
-      // Only fetch on load if we are not in explore mode
-      if (!exploreMode) {
+      // Fetch places on load for both modes (after a small delay to ensure map is fully ready)
+      setTimeout(() => {
         const initialRadius = calculateRadiusFromZoom(14);
-        fetchPlaces(initialLocation.lat, initialLocation.lng, initialRadius); // pyright: ignore[reportUnknownVariableType]
-      }
+        fetchPlaces(location.lat, location.lng, initialRadius); // pyright: ignore[reportUnknownVariableType]
+      }, 100);
     });
 
     return () => {
       map.current?.remove();
       map.current = null;
     };
-  }, [initialLocation, fetchPlaces, exploreMode]);
+  }, [initialLocation, fetchPlaces, exploreMode, mapTheme]);
 
   // If in Explore mode, we update places as map moves with debounce
   useEffect(() => {
@@ -322,17 +436,19 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     const handleMoveEnd = () => {
       // Clear any existing timeout
       clearTimeout(debounceTimeout);
-      
+
       // Wait 1 second after movement stops before fetching
       debounceTimeout = setTimeout(() => {
         const center = map.current!.getCenter();
         const zoom = map.current!.getZoom();
         const radius = calculateRadiusFromZoom(zoom);
-        
+
         console.log(`[Explore Mode] Fetching places at (${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}) with radius ${radius}m (zoom ${zoom.toFixed(1)})`);
-        
+
         // Update user location marker to new center and fetch with calculated radius
         fetchPlaces(center.lat, center.lng, radius);
+        updateRadiusCircle(map.current!, { lat: center.lat, lng: center.lng }, radius);
+
       }, 1000);
     };
 
@@ -350,12 +466,12 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
 
     console.log('[Map] Switching to Live Tracking mode');
     lastFetchPosition.current = null; // Reset on mode switch
-    
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         console.log(`[Live Tracking] Position update: ${latitude}, ${longitude}`);
-        
+
         // Always smoothly pan camera to follow user
         if (map.current) {
           map.current.panTo([longitude, latitude], {
@@ -365,7 +481,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
 
         // Calculate if we should fetch new data
         let shouldFetch = false;
-        
+
         if (!lastFetchPosition.current) {
           // First position - always fetch
           shouldFetch = true;
@@ -378,7 +494,7 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
             latitude,
             longitude
           );
-          
+
           if (distance > 20) {
             shouldFetch = true;
             console.log(`[Live Tracking] Moved ${distance.toFixed(1)}m - fetching new data`);
@@ -386,12 +502,13 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
             console.log(`[Live Tracking] Moved only ${distance.toFixed(1)}m - skipping fetch`);
           }
         }
-        
+
         // Fetch places if moved significantly
         if (shouldFetch && map.current) {
           const zoom = map.current.getZoom();
           const radius = calculateRadiusFromZoom(zoom);
           fetchPlaces(latitude, longitude, radius);
+          updateRadiusCircle(map.current!, { lat: latitude, lng: longitude }, radius);
           lastFetchPosition.current = { lat: latitude, lng: longitude };
         }
       },
@@ -410,25 +527,32 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     // Handle zoom changes with debouncing
     const handleZoomEnd = () => {
       if (!map.current || !lastFetchPosition.current) return;
-      
+
       // Clear existing timer
       if (zoomDebounceRef.current) {
         clearTimeout(zoomDebounceRef.current);
       }
-      
+
       // Wait 500ms after zoom stops before fetching
       zoomDebounceRef.current = setTimeout(() => {
         if (!map.current || !lastFetchPosition.current) return;
-        
+
         const zoom = map.current.getZoom();
         const radius = calculateRadiusFromZoom(zoom);
         console.log(`[Live Tracking] Zoom changed - fetching with new radius ${radius}m`);
-        
+
         fetchPlaces(
           lastFetchPosition.current.lat,
           lastFetchPosition.current.lng,
           radius
         );
+
+        updateRadiusCircle(
+          map.current!,
+          lastFetchPosition.current,
+          radius
+        );
+
       }, 500);
     };
 
@@ -452,11 +576,87 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
     };
   }, []);
 
+  // Update map style when theme changes
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) {
+      console.log('[Map] Map not ready for theme change');
+      return;
+    }
+
+    const styleUrl =
+      mapTheme === "light"
+        ? "mapbox://styles/mapbox/light-v11"
+        : "mapbox://styles/mapbox/dark-v11";
+
+    console.log('[Map] Changing theme to:', mapTheme, 'Style URL:', styleUrl);
+
+    // Start transition
+    setIsThemeTransitioning(true);
+
+    try {
+      // Fade out the map smoothly
+      if (mapContainer.current) {
+        mapContainer.current.style.transition = 'opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        // Use requestAnimationFrame to ensure transition is applied
+        requestAnimationFrame(() => {
+          if (mapContainer.current) {
+            mapContainer.current.style.opacity = '0.4';
+          }
+        });
+      }
+
+      // Wait for fade out, then change style
+      setTimeout(() => {
+        if (!map.current) return;
+
+        // Change the style
+        map.current.setStyle(styleUrl);
+
+        // When style is applied, fade back in and re-add the radius circle
+        map.current.once("styledata", () => {
+          console.log('[Map] Style data loaded, re-adding radius circle');
+
+          // Wait a bit for tiles to start loading, then fade in
+          setTimeout(() => {
+            if (mapContainer.current) {
+              mapContainer.current.style.opacity = '1';
+            }
+            // Remove overlay after fade in completes
+            setTimeout(() => {
+              setIsThemeTransitioning(false);
+            }, 300);
+          }, 150);
+
+          if (userLocation && map.current) {
+            const zoom = map.current.getZoom();
+            const radius = calculateRadiusFromZoom(zoom);
+            updateRadiusCircle(map.current, userLocation, radius);
+          }
+        });
+      }, 250);
+    } catch (error) {
+      console.error('[Map] Error changing theme:', error);
+      setIsThemeTransitioning(false);
+      if (mapContainer.current) {
+        mapContainer.current.style.opacity = '1';
+      }
+    }
+  }, [mapTheme, userLocation]);
+
+  const toggleTheme = () => {
+    setMapTheme(prev => (prev === "light" ? "dark" : "light"));
+  };
+
   return (
     <div className="map-wrapper">
       {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
-      
+
       {isLoading && <LoadingIndicator />}
+
+      {/* Theme transition overlay */}
+      {isThemeTransitioning && (
+        <div className="theme-transition-overlay" />
+      )}
 
       <SearchBar
         onMoveToLocation={moveToLocation}
@@ -470,6 +670,32 @@ const MapComponent: FC<MapComponentProps> = ({ initialLocation, startWithTrackin
         userLocation={userLocation}
         onRecenter={recenterMap}
       />
+
+      <button
+        onClick={toggleTheme}
+        className="theme-toggle-button"
+        title={mapTheme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+        aria-label={mapTheme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+      >
+        {mapTheme === "light" ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        )}
+      </button>
+
 
       <div ref={mapContainer} className="map-container" />
 

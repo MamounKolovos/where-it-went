@@ -50,20 +50,30 @@ const Home: FC = () => {
   if (showWelcome) {
     return (
       <div className="welcome-screen">
+        <header className="welcome-header">
+          <div className="header-content">
+            <div className="header-logo">
+              <img src="/logo.png" alt="Where It Went Logo" className="logo-image" />
+              
+            </div>
+
+          </div>
+        </header>
+
         <div className="welcome-content">
-          <h1>Where It Went</h1>
+          <h1 className="title">Where It Went?</h1>
           <p className="tagline">
             Track Federal Spending Across America
           </p>
           <p className="description">
-            Explore government spending data mapped to real locations. 
+            Explore government spending data mapped to real locations.<br />
             See where your tax dollars are going in real-time.
           </p>
-          
+
           {isLoadingLocation ? (
             <div className="loading-location">
               <div className="spinner"></div>
-              <p>Getting your location...</p>
+              <p>Getting your location…</p>
             </div>
           ) : (
             <div className="welcome-actions">
@@ -75,7 +85,7 @@ const Home: FC = () => {
               </button>
             </div>
           )}
-          
+
           <p className="default-info">
             Default location: George Mason University, Virginia
           </p>
